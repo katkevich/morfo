@@ -39,3 +39,10 @@
 
 # debug information files
 *.dwo
+
+# vscode
+.vscode
+
+# cmake
+build
+CMakePresets.json
