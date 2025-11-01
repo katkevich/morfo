@@ -6,8 +6,43 @@
 
 namespace mrf {
 
-struct hot;
-struct cold;
+struct named_bucket_tag;
+
+template <std::size_t N, typename Tag>
+struct bucket_id {
+    std::array<char, N> name = {};
+
+    constexpr bucket_id(const char (&name)[N]) {
+        std::ranges::copy_n(name, N, this->name.begin());
+    }
+
+    constexpr bucket_id(std::array<char, N> name) {
+        std::ranges::copy_n(name.begin(), N, this->name.begin());
+    }
+
+    constexpr bucket_id(mrf::bucket_tag<Tag>) {}
+
+    constexpr bool is_named() const {
+        return std::is_same_v<Tag, mrf::named_bucket_tag>;
+    }
+
+    constexpr auto to_bucket_tag() const {
+        if constexpr (std::is_same_v<Tag, mrf::named_bucket_tag>) {
+            return std::meta::reflect_constant(name);
+        } else {
+            return std::meta::reflect_constant(mrf::bucket_tag<Tag>{});
+        }
+    }
+};
+
+template <std::size_t N>
+bucket_id(const char (&)[N]) -> bucket_id<N, named_bucket_tag>;
+
+template <std::size_t N>
+bucket_id(std::array<char, N>) -> bucket_id<N, named_bucket_tag>;
+
+template <typename Tag>
+bucket_id(mrf::bucket_tag<Tag>) -> bucket_id<0, Tag>;
 
 template <typename T>
 class vector {
@@ -15,8 +50,8 @@ class vector {
     static_assert(members_count > 0, "type T should have at least one nonstatic data member");
 
 public:
-    template <typename U, typename Tag>
-    struct bucket;
+    template <auto Tag>
+    struct bucket_type;
     struct reference;
     struct const_reference;
 
@@ -39,39 +74,49 @@ private:
         mrf::static_vector<bucket_member_stat, members_count> bucket_members;
     };
 
-    static consteval std::meta::info get_bucket_tag(std::meta::info member) {
-        const auto annotations = annotations_of(member);
-        // todo: add annotations support (emulate annotations for now)
-        std::meta::info tag = is_same_type(type_of(member), ^^int) ? ^^hot : ^^cold;
-        return tag;
+    template <std::meta::info Member>
+    static consteval std::meta::info get_bucket_tag() {
+        template for (constexpr auto annotation : define_static_array(annotations_of(Member))) {
+            if constexpr (template_of(type_of(annotation)) == ^^mrf::bucket_tag) {
+                // todo: compiler barking at this for some reason - probably compiler bug
+                // return std::meta::reflect_constant(extract<typename[:type_of(annotation):]>(annotation));
+            }
+        }
+
+        template for (constexpr auto annotation : define_static_array(annotations_of(^^T))) {
+            if constexpr (template_of(type_of(annotation)) == ^^mrf::bucket_tag) {
+                return std::meta::reflect_constant(extract<typename[:type_of(annotation):]>(annotation));
+            }
+        }
+        return std::meta::reflect_constant(mrf::name_of<Member>());
     }
 
-    static consteval void define_storage_type(std::meta::info item_type, std::meta::info strg_type) {
+    static consteval void define_storage_type() {
         mrf::unordered_map<std::meta::info, std::vector<std::meta::info>> bucket_member_specs;
         std::vector<std::meta::info> storage_member_specs;
 
-        const auto members = mrf::nsdm_of(item_type);
-        for (const auto member : members) {
+        template for (constexpr auto member : mrf::nsdm_of(^^T)) {
             // clang-format off
-            const auto bucket_type = substitute(^^bucket, { item_type, get_bucket_tag(member) });
+            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_tag<member>() });
             const auto bucket_member_spec = data_member_spec(type_of(member), { .name = identifier_of(member) });
             
-            const auto storage_member_type = substitute(^^std::vector, { bucket_type });
+            const auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
             const auto storage_member_spec = data_member_spec(storage_member_type);
             // clang-format on
 
-            bucket_member_specs[bucket_type].push_back(bucket_member_spec);
+            bucket_member_specs[bucket_type_info].push_back(bucket_member_spec);
             storage_member_specs.push_back(storage_member_spec);
         }
 
-        bucket_member_specs.foreach (
-            [](const auto bucket_type, const auto member_specs) { define_aggregate(bucket_type, member_specs); });
+        bucket_member_specs.foreach ([](const auto bucket_type_info, const auto member_specs) {
+            define_aggregate(bucket_type_info, member_specs);
+        });
 
-        define_aggregate(strg_type, storage_member_specs);
+        define_aggregate(^^storage_type, storage_member_specs);
     }
 
-    static consteval void define_reference_type(std::meta::info item_type, std::meta::info ref_type, bool is_const) {
-        const auto member_stats = collect_member_stats(item_type);
+    static consteval void define_reference_type(std::meta::info ref_type, bool is_const) {
+        const auto member_stats = collect_member_stats();
 
         std::vector<std::meta::info> ref_member_specs;
 
@@ -86,18 +131,18 @@ private:
         define_aggregate(ref_type, ref_member_specs);
     }
 
-    static consteval auto collect_member_stats(std::meta::info item_type) {
+    static consteval auto collect_member_stats() {
         const auto storage_members = mrf::nsdm_of(^^storage_type);
-        const auto members = mrf::nsdm_of(item_type);
+        constexpr auto members = mrf::nsdm_of(^^T);
 
         std::array<member_stat, members_count> stats;
 
-        for (std::size_t idx = 0; const auto member : members) {
+        template for (std::size_t idx = 0; constexpr auto member : members) {
             // clang-format off
-            const auto bucket_type = substitute(^^bucket, { item_type, get_bucket_tag(member) });
-            const auto storage_member_type = substitute(^^std::vector, { bucket_type });
+            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_tag<member>() });
+            const auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
             // clang-format on
-            const auto bucket_members = mrf::nsdm_of(bucket_type);
+            const auto bucket_members = mrf::nsdm_of(bucket_type_info);
 
             const auto bucket_member_it = std::ranges::find(bucket_members, identifier_of(member), &std::meta::identifier_of);
             const auto storage_member_it = std::ranges::find(storage_members, storage_member_type, &std::meta::type_of);
@@ -112,18 +157,18 @@ private:
         return stats;
     }
 
-    static consteval auto collect_storage_stats(std::meta::info item_type) {
+    static consteval auto collect_storage_stats() {
         mrf::static_vector<storage_member_stat, members_count> storage_stats{};
 
         const auto storage_members = mrf::nsdm_of(^^storage_type);
-        const auto members = mrf::nsdm_of(item_type);
+        constexpr auto members = mrf::nsdm_of(^^T);
 
-        for (const auto member : members) {
+        template for (constexpr auto member : members) {
             // clang-format off
-            const auto bucket_type = substitute(^^bucket, { item_type, get_bucket_tag(member) });
-            const auto storage_member_type = substitute(^^std::vector, { bucket_type });
+            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_tag<member>() });
+            const auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
             // clang-format on
-            const auto bucket_members = mrf::nsdm_of(bucket_type);
+            const auto bucket_members = mrf::nsdm_of(bucket_type_info);
 
             const auto bucket_member_it = std::ranges::find(bucket_members, identifier_of(member), &std::meta::identifier_of);
             const auto storage_member_it = std::ranges::find(storage_members, storage_member_type, &std::meta::type_of);
@@ -146,9 +191,9 @@ private:
     }
 
     consteval {
-        define_storage_type(^^T, ^^storage_type); // storage_type as well as corresponding bucket<T, Tag> types
-        define_reference_type(^^T, ^^reference, false);
-        define_reference_type(^^T, ^^const_reference, true);
+        define_storage_type(); // storage_type as well as corresponding bucket_type<Tag> types
+        define_reference_type(^^reference, false);
+        define_reference_type(^^const_reference, true);
     }
 
 private:
@@ -168,7 +213,7 @@ private:
             , idx(idx) {}
 
         constexpr reference operator*() const noexcept {
-            return mrf::spread<collect_member_stats(^^T)>([this]<member_stat... Stats> {
+            return mrf::spread<collect_member_stats()>([this]<member_stat... Stats> {
                 return reference{ container->storage.[:Stats.storage_member:][idx].[:Stats.bucket_member:]... };
             });
         }
@@ -260,6 +305,31 @@ public:
     using const_pointer = void;
     using iterator = ref_iterator<false>;
     using const_iterator = ref_iterator<true>;
+
+    template <mrf::bucket_id Id>
+    constexpr const auto& bucket() const {
+        // clang-format off
+        constexpr auto bucket_type_info = substitute(^^bucket_type, { Id.to_bucket_tag() });
+        constexpr auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
+        // clang-format on
+
+        constexpr auto storage_members = mrf::nsdm_of(^^storage_type);
+        constexpr auto found = std::ranges::find(storage_members, storage_member_type, &std::meta::type_of);
+
+        if constexpr (found != std::ranges::end(storage_members)) {
+            return storage.[:*found:];
+        } else {
+            if constexpr (Id.is_named()) {
+                static_assert(mrf::always_false<Id>::value,
+                    "you are trying to retrieve a bucket using name of a member which does't exist");
+            } else {
+                static_assert(mrf::always_false<Id>::value,
+                    "you are trying to retrieve a bucket using a tag which isn't specified within annotations");
+            }
+            static std::ranges::dangling dummy;
+            return dummy;
+        }
+    }
 
     constexpr auto begin() {
         return iterator{ this, 0 };
@@ -358,36 +428,36 @@ public:
     }
 
     constexpr void reserve(size_type new_cap) {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>([new_cap, this]<storage_member_stat StorageMemberStat> {
+        mrf::static_vector_foreach<collect_storage_stats()>([new_cap, this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].reserve(new_cap);
         });
     }
 
     constexpr void shrink_to_fit() {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>([this]<storage_member_stat StorageMemberStat> {
+        mrf::static_vector_foreach<collect_storage_stats()>([this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].shrink_to_fit();
         });
     }
 
     constexpr void clear() {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>([this]<storage_member_stat StorageMemberStat> { //
+        mrf::static_vector_foreach<collect_storage_stats()>([this]<storage_member_stat StorageMemberStat> { //
             storage.[:StorageMemberStat.storage_member:].clear();
         });
     }
 
     constexpr void pop_back() {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>(
+        mrf::static_vector_foreach<collect_storage_stats()>(
             [this]<storage_member_stat StorageMemberStat> { storage.[:StorageMemberStat.storage_member:].pop_back(); });
     }
 
     constexpr void resize(size_type new_size) {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>([new_size, this]<storage_member_stat StorageMemberStat> {
+        mrf::static_vector_foreach<collect_storage_stats()>([new_size, this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].resize(new_size);
         });
     }
 
     constexpr void resize(size_type new_size, const T& default_val) {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>([&, this]<storage_member_stat StorageMemberStat> {
+        mrf::static_vector_foreach<collect_storage_stats()>([&, this]<storage_member_stat StorageMemberStat> {
             mrf::static_vector_spread<StorageMemberStat.bucket_members>([&, this]<bucket_member_stat... BucketMemberStats> {
                 storage.[:StorageMemberStat.storage_member:].resize(new_size, { default_val.[:BucketMemberStats.item_member:]... });
             });
@@ -395,7 +465,7 @@ public:
     }
 
     constexpr void swap(vector& that) {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>([that, this]<storage_member_stat StorageMemberStat> {
+        mrf::static_vector_foreach<collect_storage_stats()>([that, this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].swap(that.storage.[:StorageMemberStat.storage_member:]);
         });
     }
@@ -403,7 +473,7 @@ public:
 private:
     template <typename U>
     constexpr void push_back_impl(U&& item) {
-        mrf::static_vector_foreach<collect_storage_stats(^^T)>([&, this]<storage_member_stat StorageMemberStat> {
+        mrf::static_vector_foreach<collect_storage_stats()>([&, this]<storage_member_stat StorageMemberStat> {
             mrf::static_vector_spread<StorageMemberStat.bucket_members>([&, this]<bucket_member_stat... BucketMemberStats> {
                 storage.[:StorageMemberStat.storage_member:].emplace_back(
                     std::forward_like<U>(item.[:BucketMemberStats.item_member:])...);
@@ -415,4 +485,6 @@ private:
     storage_type storage;
 };
 
+template <typename T, auto Tag>
+using bucket = typename mrf::vector<T>::template bucket_type<Tag>;
 } // namespace mrf
