@@ -1,48 +1,10 @@
 #pragma once
-#include "morfo/annotation.hpp"
+#include "morfo/bucket.hpp"
 #include "morfo/misc/algorithm.hpp"
 #include "morfo/misc/static_vector.hpp"
 #include "morfo/misc/unordered_map.hpp"
 
 namespace mrf {
-
-struct named_bucket_tag;
-
-template <std::size_t N, typename Tag>
-struct bucket_id {
-    std::array<char, N> name = {};
-
-    constexpr bucket_id(const char (&name)[N]) {
-        std::ranges::copy_n(name, N, this->name.begin());
-    }
-
-    constexpr bucket_id(std::array<char, N> name) {
-        std::ranges::copy_n(name.begin(), N, this->name.begin());
-    }
-
-    constexpr bucket_id(mrf::bucket_tag<Tag>) {}
-
-    constexpr bool is_named() const {
-        return std::is_same_v<Tag, mrf::named_bucket_tag>;
-    }
-
-    constexpr auto to_bucket_tag() const {
-        if constexpr (std::is_same_v<Tag, mrf::named_bucket_tag>) {
-            return std::meta::reflect_constant(name);
-        } else {
-            return std::meta::reflect_constant(mrf::bucket_tag<Tag>{});
-        }
-    }
-};
-
-template <std::size_t N>
-bucket_id(const char (&)[N]) -> bucket_id<N, named_bucket_tag>;
-
-template <std::size_t N>
-bucket_id(std::array<char, N>) -> bucket_id<N, named_bucket_tag>;
-
-template <typename Tag>
-bucket_id(mrf::bucket_tag<Tag>) -> bucket_id<0, Tag>;
 
 template <typename T>
 class vector {
@@ -50,8 +12,9 @@ class vector {
     static_assert(members_count > 0, "type T should have at least one nonstatic data member");
 
 public:
-    template <auto Tag>
+    template <mrf::bucket_id Id>
     struct bucket_type;
+
     struct reference;
     struct const_reference;
 
@@ -75,19 +38,20 @@ private:
     };
 
     template <std::meta::info Member>
-    static consteval std::meta::info get_bucket_tag() {
+    static consteval std::meta::info get_bucket_id() {
         template for (constexpr auto annotation : define_static_array(annotations_of(Member))) {
             if constexpr (template_of(type_of(annotation)) == ^^mrf::bucket_tag) {
-                return std::meta::reflect_constant(extract<typename[:type_of(annotation):]>(annotation));
+                return std::meta::reflect_constant(mrf::bucket_id{ extract<typename[:type_of(annotation):]>(annotation) });
             }
         }
 
         template for (constexpr auto annotation : define_static_array(annotations_of(^^T))) {
             if constexpr (template_of(type_of(annotation)) == ^^mrf::bucket_tag) {
-                return std::meta::reflect_constant(extract<typename[:type_of(annotation):]>(annotation));
+                return std::meta::reflect_constant(mrf::bucket_id{ extract<typename[:type_of(annotation):]>(annotation) });
             }
         }
-        return std::meta::reflect_constant(mrf::name_of<Member>());
+
+        return std::meta::reflect_constant(mrf::bucket_id{ mrf::name_of<Member>() });
     }
 
     static consteval void define_storage_type() {
@@ -96,7 +60,7 @@ private:
 
         template for (constexpr auto member : mrf::nsdm_of(^^T)) {
             // clang-format off
-            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_tag<member>() });
+            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_id<member>() });
             const auto bucket_member_spec = data_member_spec(type_of(member), { .name = identifier_of(member) });
 
             const auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
@@ -138,7 +102,7 @@ private:
 
         template for (std::size_t idx = 0; constexpr auto member : members) {
             // clang-format off
-            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_tag<member>() });
+            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_id<member>() });
             const auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
             // clang-format on
             const auto bucket_members = mrf::nsdm_of(bucket_type_info);
@@ -164,7 +128,7 @@ private:
 
         template for (constexpr auto member : members) {
             // clang-format off
-            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_tag<member>() });
+            const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_id<member>() });
             const auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
             // clang-format on
             const auto bucket_members = mrf::nsdm_of(bucket_type_info);
@@ -306,7 +270,7 @@ public:
     template <mrf::bucket_id Id>
     constexpr const auto& bucket() const {
         // clang-format off
-        constexpr auto bucket_type_info = substitute(^^bucket_type, { Id.to_bucket_tag() });
+        constexpr auto bucket_type_info = substitute(^^bucket_type, { std::meta::reflect_constant(Id) });
         constexpr auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
         // clang-format on
 
@@ -318,10 +282,10 @@ public:
         } else {
             if constexpr (Id.is_named()) {
                 static_assert(mrf::always_false<Id>::value,
-                    "you are trying to retrieve a bucket using name of a member which does't exist");
+                    R"(you are trying to get `mrf::bucket<T, "name">` bucket but member `name` is missing from struct `T`)");
             } else {
                 static_assert(mrf::always_false<Id>::value,
-                    "you are trying to retrieve a bucket using a tag which isn't specified within annotations");
+                    R"(you are trying to get `mrf::bucket<T, tag>` bucket but corresponding member (or struct `T`) ain't marked with `tag` annotation)");
             }
             static std::ranges::dangling dummy;
             return dummy;
@@ -482,6 +446,11 @@ private:
     storage_type storage;
 };
 
-template <typename T, auto Tag>
-using bucket = typename mrf::vector<T>::template bucket_type<Tag>;
+/**
+ * Usage:
+ * mrf::bucket<Person, mrf::hot>    // defines a bucket for members which are marked with [[= mrf::hot]] annotation
+ * mrf::bucket<Person, "name">      // defines a bucket for `name` member if neither `Person` struct nor `name` member were marked with some annotation tag
+ */
+template <typename T, mrf::bucket_id TagOrName>
+using bucket = typename mrf::vector<T>::template bucket_type<TagOrName>;
 } // namespace mrf
