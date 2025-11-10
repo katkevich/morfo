@@ -78,8 +78,7 @@ private:
     static consteval std::meta::info get_bucket_tag() {
         template for (constexpr auto annotation : define_static_array(annotations_of(Member))) {
             if constexpr (template_of(type_of(annotation)) == ^^mrf::bucket_tag) {
-                // todo: compiler barking at this for some reason - probably compiler bug
-                // return std::meta::reflect_constant(extract<typename[:type_of(annotation):]>(annotation));
+                return std::meta::reflect_constant(extract<typename[:type_of(annotation):]>(annotation));
             }
         }
 
@@ -99,7 +98,7 @@ private:
             // clang-format off
             const auto bucket_type_info = substitute(^^bucket_type, { get_bucket_tag<member>() });
             const auto bucket_member_spec = data_member_spec(type_of(member), { .name = identifier_of(member) });
-            
+
             const auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
             const auto storage_member_spec = data_member_spec(storage_member_type);
             // clang-format on
@@ -173,18 +172,16 @@ private:
             const auto bucket_member_it = std::ranges::find(bucket_members, identifier_of(member), &std::meta::identifier_of);
             const auto storage_member_it = std::ranges::find(storage_members, storage_member_type, &std::meta::type_of);
 
-            const auto storage_stat_it =
-                std::ranges::find(storage_stats.data, *storage_member_it, &storage_member_stat::storage_member);
+            auto storage_stat_it = std::ranges::find(storage_stats.data, *storage_member_it, &storage_member_stat::storage_member);
+
             if (storage_stat_it == std::ranges::end(storage_stats.data)) {
                 storage_stats.push_back(storage_member_stat{
                     .storage_member = *storage_member_it,
                 });
+                storage_stats.back().bucket_members.push_back(bucket_member_stat{ member, *bucket_member_it });
+            } else {
+                storage_stat_it->bucket_members.push_back(bucket_member_stat{ member, *bucket_member_it });
             }
-
-            storage_stats.back().bucket_members.push_back(bucket_member_stat{
-                .item_member = member,
-                .bucket_member = *bucket_member_it,
-            });
         }
 
         return storage_stats;

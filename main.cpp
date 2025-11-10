@@ -45,47 +45,56 @@
     wtf??? DO WE HAVE constexpr function arguments???
 */
 
-struct[[= mrf::cold]] Person {
-    [[= mrf::hot]] int id = 0;
-    int age = 0;
-    [[= mrf::hot]] std::string_view name;
+struct Person {
+    [[= mrf::cold]] int id = 0;
+    [[= mrf::hot]] int age = 0;
+    [[= mrf::cold]] std::string_view name;
     std::string_view surname;
 };
 
-struct P {
-    int age = 0;
-};
+constexpr int eval() {
+    constexpr auto id = mrf::nsdm_of(^^Person)[0];
+    constexpr auto anns = define_static_array(annotations_of(id));
+    constexpr auto ann = anns[0];
+    static_assert(template_of(type_of(ann)) == ^^mrf::bucket_tag);
+    
+    constexpr auto ann_val = extract<typename[:type_of(ann):]>(ann);
+    static_assert(std::is_same_v<decltype(ann_val), const mrf::bucket_tag<mrf::cold_tag>>);
 
-consteval int eval(std::meta::info type) {
-    mrf::vector<Person> persons;
-    persons.push_back(Person{ 0, 18, "john", "wick" });
-    persons.push_back(Person{ 1, 42, "alice", "bonbon" });
-    persons.emplace_back(2, 33, "bob", "gor");
+    constexpr auto bucket_type_1 = substitute(^^mrf::vector<Person>::template bucket_type, { ^^mrf::cold });
+    constexpr auto bucket_type_2 = substitute(^^mrf::vector<Person>::template bucket_type, { ^^ann_val });
+    constexpr auto bucket_type_3 = substitute(^^mrf::vector<Person>::template bucket_type, { std::meta::reflect_constant(ann_val) });
+    using bucket_t = mrf::vector<Person>::template bucket_type<mrf::bucket_tag<mrf::cold_tag>{}>;
 
-    persons.front().name;
-    persons.back().name;
-    persons[1].name;
-    persons.at(2).name;
-    persons.empty();
+    static_assert(is_same_type(bucket_type_1, dealias(^^bucket_t)));
+    static_assert(is_same_type(bucket_type_2, dealias(^^bucket_t)));
+    static_assert(is_same_type(bucket_type_3, dealias(^^bucket_t)));
+    mrf::vector<Person>::template bucket_type<mrf::bucket_tag<mrf::cold_tag>{}> vec;
 
-    persons.capacity();
-    persons.reserve(9);
-    persons.shrink_to_fit();
-    persons.pop_back();
-    persons.resize(4, Person{ 5, 5, "igor", "gal" });
-
-    for (mrf::vector<Person>::reference person : persons) {
-        person.age, person.name;
+    template for (constexpr auto ann : anns)
+    {
+        static_assert(template_of(type_of(ann)) == ^^mrf::bucket_tag);
+        constexpr auto ann_val = extract<typename[:type_of(ann):]>(ann);
+        static_assert(std::is_same_v<decltype(ann_val), const mrf::bucket_tag<mrf::cold_tag>>);
     }
 
-    const auto& bucket = persons.bucket<mrf::cold>();
-    bucket.begin();
+    Person person;
+    mrf::vector<Person>::reference r{ person.id, person.age, person.name, person.surname };
+    r.id;
+    r.age;
+    r.name;
+    r.surname;
+    mrf::vector<Person>::const_reference cr{ person.id, person.age, person.name, person.surname };
 
-    return persons.size();
+    mrf::vector<Person> pers;
+    pers.push_back(Person{ 1, 32, "john", "bay" });
+
+    return 0;
 }
 
 int main() {
     mrf::vector<Person> persons;
+
     persons.push_back(Person{ 0, 18, "john", "wick" });
     persons.push_back(Person{ 1, 42, "alice", "bonbon" });
     persons.emplace_back(2, 33, "bob", "gor");
@@ -115,27 +124,18 @@ int main() {
         std::cout << person.age << " " << person.name << "\n";
     }
 
-    // const std::vector<mrf::bucket<Person, mrf::hot>>& bucket_nonvalid = persons.bucket<mrf::hot>();
-    const std::vector<mrf::bucket<Person, mrf::cold>>& bucket = persons.bucket<mrf::cold>();
-    std::cout << "bucket[0]: " << bucket[0].age << " " << bucket[0].name << "\n";
+    const std::vector<mrf::bucket<Person, mrf::cold>>& bucket_cold = persons.bucket<mrf::cold>();
+    std::cout << "bucket[0]: " << bucket_cold[0].id << " " << bucket_cold[0].name << "\n";
 
+    // const std::vector<mrf::bucket<Person, mrf::bucket_id<"surname">>>& bucket_surname = persons.bucket<"surname">();
+    const auto& bucket_surname = persons.bucket<"surname">();
+    std::cout << "bucket_surname[0]: " << bucket_surname[0].surname << "\n";
 
-    mrf::vector<P> pers;
-    pers.push_back(P{ .age = 10 });
+    constexpr static std::array<char, 3> ArrStr = {'h', 'i', '\0'};
+    constexpr char const* Str = ArrStr.data();
 
-    const auto& buck = pers.bucket<"age">();
-    const std::vector<mrf::bucket<P, std::array{'a','g','e','\0'}>>& buck2 = pers.bucket<"age">();
+    constexpr auto ret = eval();
+    auto ret2 = eval();
 
-    for (const auto& p : buck)
-    {
-        std::cout << "P::age: " << p.age << '\n'; 
-    }
-
-    static_assert(std::random_access_iterator<mrf::vector<Person>::const_iterator>, "should satisfy random iterator");
-
-    constexpr int result = eval(^^Person);
-
-    std::cout << "eval result: " << result << "\n";
-
-    return 10;
+    return ret;
 }
