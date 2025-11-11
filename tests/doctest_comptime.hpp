@@ -1,0 +1,47 @@
+#pragma once
+#include <doctest/doctest.h>
+
+#define MRF_CHECK(expr) \
+    if consteval {      \
+        (bool)expr;     \
+    } else {            \
+        CHECK(expr);    \
+    }
+
+#define MRF_CHECK_EQ(actual, expected) \
+    if consteval {                     \
+        (void)(actual == expected);    \
+    } else {                           \
+        CHECK_EQ(actual, expected);    \
+    }
+
+#define MRF_REQUIRE(expr) \
+    if consteval {        \
+        (bool)expr;       \
+    } else {              \
+        REQUIRE(expr);    \
+    }
+
+#define MRF_REQUIRE_EQ(actual, expected) \
+    if consteval {                       \
+        (void)(actual == expected);      \
+    } else {                             \
+        REQUIRE_EQ(actual, expected);    \
+    }
+
+#define MRF_TEST_CASE_IMPL(f, name)                                                               \
+    static constexpr void f();                                                                    \
+    template <auto Fn>                                                                            \
+    void DOCTEST_CAT(f, _comptime)() {                                                            \
+        [[maybe_unused]] constexpr int _ = (Fn(), 0);                                             \
+    }                                                                                             \
+    template <auto Fn>                                                                            \
+    void DOCTEST_CAT(f, _runtime)() {                                                             \
+        Fn();                                                                                     \
+    }                                                                                             \
+    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _runtime) < f >, "[runtime] " name)   \
+    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _comptime) < f >, "[comptime] " name) \
+    static constexpr void f()
+
+/* Ensure test is able to run in both runtime and compiletime contexts */
+#define MRF_TEST_CASE(name) MRF_TEST_CASE_IMPL(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), name)

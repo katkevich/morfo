@@ -411,10 +411,8 @@ public:
             [this]<storage_member_stat StorageMemberStat> { storage.[:StorageMemberStat.storage_member:].pop_back(); });
     }
 
-    constexpr void resize(size_type new_size) {
-        mrf::static_vector_foreach<collect_storage_stats()>([new_size, this]<storage_member_stat StorageMemberStat> {
-            storage.[:StorageMemberStat.storage_member:].resize(new_size);
-        });
+    constexpr void resize(size_type new_size) requires std::is_default_constructible_v<T> {
+        resize(new_size, T{});
     }
 
     constexpr void resize(size_type new_size, const T& default_val) {
@@ -426,7 +424,7 @@ public:
     }
 
     constexpr void swap(vector& that) {
-        mrf::static_vector_foreach<collect_storage_stats()>([that, this]<storage_member_stat StorageMemberStat> {
+        mrf::static_vector_foreach<collect_storage_stats()>([&that, this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].swap(that.storage.[:StorageMemberStat.storage_member:]);
         });
     }

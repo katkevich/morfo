@@ -13,12 +13,16 @@ set(MORFO_HEADERS
     include/morfo/misc/algorithm.hpp
 )
 
-add_executable(morfo main.cpp)
-target_sources(morfo PUBLIC
+add_library(morfo INTERFACE)
+add_library(morfo::morfo ALIAS morfo)
+target_sources(morfo INTERFACE
     FILE_SET morfo_headers_set TYPE HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
     FILES ${MORFO_HEADERS}
 )
-target_compile_options(morfo PRIVATE
-    $<$<CXX_COMPILER_ID:Clang>: -std=c++26 -fexpansion-statements -freflection-latest -Wno-unused-value>
+target_compile_options(morfo INTERFACE
+    $<$<CXX_COMPILER_ID:Clang>:-std=c++26 -fexpansion-statements -freflection-latest -Wno-unused-value>
 )
+
+enable_testing()
+add_subdirectory(tests EXCLUDE_FROM_ALL)
