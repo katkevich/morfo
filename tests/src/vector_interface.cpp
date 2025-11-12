@@ -4,9 +4,9 @@
 namespace mrf::test::vector_interface {
 
 struct Person {
-    [[= mrf::hot]] int id = 0;
-    [[= mrf::cold]] int age = 0;
-    [[= mrf::hot]] std::string_view name = "default_name";
+    int id = 0;
+    int age = 0;
+    std::string_view name = "default_name";
     std::string_view surname = "default_surname";
 
     auto operator<=>(const Person&) const = default;

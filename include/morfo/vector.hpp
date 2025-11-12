@@ -16,8 +16,11 @@ class vector : public mrf::mixin::collect_mixin {
     static_assert(!std::is_reference_v<T>, "reference T ain't supported");
 
     /* These will be defined using reflection */
+public:
     template <mrf::bucket_id Id>
     struct bucket_type;
+
+private:
     struct reference_storage_type;
     struct const_reference_storage_type;
     struct storage_type;
@@ -366,27 +369,16 @@ public:
 
     template <mrf::bucket_id Id>
     constexpr const auto& bucket() const {
-        // clang-format off
-        constexpr auto bucket_type_info = substitute(^^bucket_type, { std::meta::reflect_constant(Id) });
-        constexpr auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
-        // clang-format on
+        return bucket_impl<Id>();
+    }
 
-        constexpr auto storage_members = mrf::nsdm_of(^^storage_type);
-        constexpr auto found = std::ranges::find(storage_members, storage_member_type, &std::meta::type_of);
-
-        if constexpr (found != std::ranges::end(storage_members)) {
-            return storage.[:*found:];
-        } else {
-            if constexpr (Id.is_named()) {
-                static_assert(mrf::always_false<Id>::value,
-                    R"(you are trying to get `mrf::bucket<T, "name">` bucket but member `name` is missing from struct `T`)");
-            } else {
-                static_assert(mrf::always_false<Id>::value,
-                    R"(you are trying to get `mrf::bucket<T, tag>` bucket but corresponding member (or struct `T`) ain't marked with `tag` annotation)");
-            }
-            static std::ranges::dangling dummy;
-            return dummy;
-        }
+    /**
+     * Be careful with changing the size of a mutable bucket!
+     * Using mrf::vector while one of the buckets have different size is UB!
+     */
+    template <mrf::bucket_id Id>
+    constexpr auto& bucket_mut() {
+        return bucket_impl<Id>();
     }
 
     constexpr auto begin() {
@@ -537,6 +529,31 @@ private:
                     std::forward_like<U>(item.[:BucketMemberStats.item_member:])...);
             });
         });
+    }
+
+    template <mrf::bucket_id Id, typename TSelf>
+    constexpr auto& bucket_impl(this TSelf&& self) {
+        // clang-format off
+        constexpr auto bucket_type_info = substitute(^^bucket_type, { std::meta::reflect_constant(Id) });
+        constexpr auto storage_member_type = substitute(^^std::vector, { bucket_type_info });
+        // clang-format on
+
+        constexpr auto storage_members = mrf::nsdm_of(^^storage_type);
+        constexpr auto found = std::ranges::find(storage_members, storage_member_type, &std::meta::type_of);
+
+        if constexpr (found != std::ranges::end(storage_members)) {
+            return self.storage.[:*found:];
+        } else {
+            if constexpr (Id.is_named()) {
+                static_assert(mrf::always_false<Id>::value,
+                    R"(you are trying to get `mrf::bucket<T, "name">` bucket but member `name` is missing from struct `T`)");
+            } else {
+                static_assert(mrf::always_false<Id>::value,
+                    R"(you are trying to get `mrf::bucket<T, tag>` bucket but corresponding member (or struct `T`) ain't marked with `tag` annotation)");
+            }
+            static std::ranges::dangling dummy;
+            return dummy;
+        }
     }
 
 private:

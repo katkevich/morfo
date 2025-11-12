@@ -12,6 +12,7 @@ FetchContent_MakeAvailable(doctest)
 
 add_executable(morfo_tests
     src/vector_interface.cpp
+    src/annotations.cpp
 )
 target_sources(morfo_tests PRIVATE
     FILE_SET morfo_tests_headers TYPE HEADERS

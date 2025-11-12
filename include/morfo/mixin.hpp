@@ -11,7 +11,7 @@ struct into_mixin {
         return self.forward_into();
     }
 
-    /* Copy (or move form rvalue (aka "steal")) the content of 'morfo' reference back into its original type */
+    /* Copy or "steal" (move form rvalue) the content of 'morfo' reference back into its original type */
     template <typename TSelf>
     constexpr auto forward_into(this TSelf&& self) {
         using reference_type = std::remove_cvref_t<TSelf>;
