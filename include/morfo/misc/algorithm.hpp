@@ -35,6 +35,10 @@ consteval auto nsdm_of(std::meta::info type) {
     return define_static_array(nonstatic_data_members_of(type, std::meta::access_context::unchecked()));
 }
 
+consteval auto nsdm_size_of(std::meta::info type) {
+    return nonstatic_data_members_of(type, std::meta::access_context::unchecked()).size();
+}
+
 template <auto Array, typename Fn>
 constexpr void foreach (Fn fn) {
     [&fn]<std::size_t... Idx>(std::index_sequence<Idx...>) { //

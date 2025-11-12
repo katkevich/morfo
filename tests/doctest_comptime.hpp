@@ -3,7 +3,7 @@
 
 #define MRF_CHECK(expr) \
     if consteval {      \
-        (bool)expr;     \
+        (bool)(expr);   \
     } else {            \
         CHECK(expr);    \
     }
@@ -15,9 +15,16 @@
         CHECK_EQ(actual, expected);    \
     }
 
+#define MRF_CHECK_NE(actual, expected) \
+    if consteval {                     \
+        (void)(actual != expected);    \
+    } else {                           \
+        CHECK_NE(actual, expected);    \
+    }
+
 #define MRF_REQUIRE(expr) \
     if consteval {        \
-        (bool)expr;       \
+        (bool)(expr);     \
     } else {              \
         REQUIRE(expr);    \
     }
@@ -27,6 +34,41 @@
         (void)(actual == expected);      \
     } else {                             \
         REQUIRE_EQ(actual, expected);    \
+    }
+
+#define MRF_REQUIRE_NE(actual, expected) \
+    if consteval {                       \
+        (void)(actual != expected);      \
+    } else {                             \
+        REQUIRE_NE(actual, expected);    \
+    }
+
+#define MRF_REQUIRE_LT(actual, expected) \
+    if consteval {                       \
+        (void)(actual < expected);       \
+    } else {                             \
+        REQUIRE_LT(actual, expected);    \
+    }
+
+#define MRF_REQUIRE_LE(actual, expected) \
+    if consteval {                       \
+        (void)(actual <= expected);      \
+    } else {                             \
+        REQUIRE_LE(actual, expected);    \
+    }
+
+#define MRF_REQUIRE_GT(actual, expected) \
+    if consteval {                       \
+        (void)(actual > expected);       \
+    } else {                             \
+        REQUIRE_GT(actual, expected);    \
+    }
+
+#define MRF_REQUIRE_GE(actual, expected) \
+    if consteval {                       \
+        (void)(actual >= expected);      \
+    } else {                             \
+        REQUIRE_GE(actual, expected);    \
     }
 
 #define MRF_TEST_CASE_IMPL(f, name)                                                               \

@@ -3,23 +3,25 @@
 #include "morfo/misc/algorithm.hpp"
 #include "morfo/misc/static_vector.hpp"
 #include "morfo/misc/unordered_map.hpp"
+#include "morfo/mixin.hpp"
+#include <cassert>
 
 namespace mrf {
 
 template <typename T>
-class vector {
+class vector : public mrf::mixin::collect_mixin {
     static constexpr std::size_t members_count = nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()).size();
     static_assert(members_count > 0, "type T should have at least one nonstatic data member");
+    static_assert(!std::is_const_v<T>, "const T ain't supported");
+    static_assert(!std::is_reference_v<T>, "reference T ain't supported");
 
-public:
+    /* These will be defined using reflection */
     template <mrf::bucket_id Id>
     struct bucket_type;
-
-    struct reference;
-    struct const_reference;
-
-private:
+    struct reference_storage_type;
+    struct const_reference_storage_type;
     struct storage_type;
+    /**/
 
     struct member_stat {
         std::meta::info item_member;
@@ -153,29 +155,89 @@ private:
 
     consteval {
         define_storage_type(); // storage_type as well as corresponding bucket_type<Tag> types
-        define_reference_type(^^reference, false);
-        define_reference_type(^^const_reference, true);
+        define_reference_type(^^reference_storage_type, false);
+        define_reference_type(^^const_reference_storage_type, true);
     }
 
+public:
+    struct reference : reference_storage_type, mrf::mixin::into_mixin, mrf::mixin::cmp_mixin {
+        using original_type = T;
+        using vector_type = mrf::vector<T>;
+        using storage_type = reference_storage_type;
+    };
+
+    struct const_reference : const_reference_storage_type, mrf::mixin::into_mixin, mrf::mixin::cmp_mixin {
+        using original_type = T;
+        using vector_type = mrf::vector<T>;
+        using storage_type = const_reference_storage_type;
+    };
+
+    struct pointer : reference_storage_type {
+        using original_type = T;
+        using vector_type = mrf::vector<T>;
+        using storage_type = reference_storage_type;
+
+        constexpr auto operator->() {
+            return this;
+        }
+        constexpr auto operator->() const {
+            return this;
+        }
+    };
+
+    struct const_pointer : const_reference_storage_type {
+        using original_type = T;
+        using vector_type = mrf::vector<T>;
+        using storage_type = const_reference_storage_type;
+
+        constexpr auto operator->() {
+            return this;
+        }
+        constexpr auto operator->() const {
+            return this;
+        }
+    };
+
 private:
-    template <bool IsConst>
+    enum class iter_kind { constant, regular };
+
+    template <iter_kind Kind>
     class ref_iterator {
+        template <iter_kind OtherKind>
+        friend class ref_iterator;
+
     public:
-        using container_type = std::conditional_t<IsConst, const mrf::vector<T>, mrf::vector<T>>;
-        using reference = std::conditional_t<IsConst, vector::const_reference, vector::reference>;
+        using container_type = std::conditional_t<Kind == iter_kind::constant, const mrf::vector<T>, mrf::vector<T>>;
+        using reference = std::conditional_t<Kind == iter_kind::constant, vector::const_reference, vector::reference>;
         using value_type = reference;
         using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
-        using pointer = void;
+        using pointer = std::conditional_t<Kind == iter_kind::constant, vector::const_pointer, vector::pointer>;
 
         constexpr ref_iterator() = default;
         constexpr ref_iterator(container_type* container, std::size_t idx)
             : container(container)
             , idx(idx) {}
+        constexpr ref_iterator(const ref_iterator&) = default;
+        constexpr ref_iterator(ref_iterator&&) = default;
+        constexpr ref_iterator& operator=(const ref_iterator&) = default;
+        constexpr ref_iterator& operator=(ref_iterator&&) = default;
+
+        /* non-constant to constant iterator implicit convertion */
+        constexpr ref_iterator(const ref_iterator<iter_kind::regular>& that)
+            requires(Kind == iter_kind::constant)
+            : container(that.container)
+            , idx(that.idx) {}
 
         constexpr reference operator*() const noexcept {
             return mrf::spread<collect_member_stats()>([this]<member_stat... Stats> {
                 return reference{ container->storage.[:Stats.storage_member:][idx].[:Stats.bucket_member:]... };
+            });
+        }
+
+        constexpr pointer operator->() const noexcept {
+            return mrf::spread<collect_member_stats()>([this]<member_stat... Stats> {
+                return pointer{ container->storage.[:Stats.storage_member:][idx].[:Stats.bucket_member:]... };
             });
         }
 
@@ -211,31 +273,63 @@ private:
             return *this;
         }
 
-        constexpr difference_type operator-(const ref_iterator& that) const noexcept {
-            return difference_type(idx - that.idx);
-        }
-
         constexpr reference operator[](difference_type offset) const {
             auto copy = *this;
             copy += offset;
             return *copy;
         }
 
-        constexpr bool operator==(const ref_iterator& that) const noexcept {
-            return (container == that.container && idx == that.idx) || (is_end() && that.is_end());
-        }
-
-        constexpr bool operator!=(const ref_iterator& that) const noexcept {
-            return !operator==(that);
-        }
-
-        constexpr bool is_end() const noexcept {
-            return !container || idx >= container->size();
-        }
-
     private:
-        constexpr friend auto operator<=>(const ref_iterator& lhs, const ref_iterator& rhs) noexcept {
-            return lhs.idx <=> rhs.idx;
+        constexpr friend auto operator<=>(const ref_iterator& l, const ref_iterator& r) noexcept {
+            if (!std::is_constant_evaluated()) {
+                assert(l.container == r.container);
+            }
+
+            /* We cannot compare nullptr and non-nullptr pointers using operator<=> at compile time.
+             * Comparison between pointers to unrelated objects (nullptr and non-nullptr) has unspecified value.
+             * Which means we have to define the ordering manually here.
+             */
+            if (!l.container && !r.container) {
+                return l.idx <=> r.idx;
+            } else if (!l.container) {
+                return std::strong_ordering::less;
+            } else if (!r.container) {
+                return std::strong_ordering::greater;
+            }
+
+            if (auto ord = l.container <=> r.container; ord != 0) {
+                return ord;
+            }
+
+            const auto l_size = l.container->size();
+            const auto l_idx_norm = std::min(l.idx, l_size);
+            const auto r_idx_norm = std::min(r.idx, l_size);
+
+            return l_idx_norm <=> r_idx_norm;
+        }
+
+        constexpr friend bool operator<(const ref_iterator& l, const ref_iterator& r) noexcept {
+            return (l <=> r) < 0;
+        }
+
+        constexpr friend bool operator<=(const ref_iterator& l, const ref_iterator& r) noexcept {
+            return (l <=> r) <= 0;
+        }
+
+        constexpr friend bool operator>(const ref_iterator& l, const ref_iterator& r) noexcept {
+            return (l <=> r) > 0;
+        }
+
+        constexpr friend bool operator>=(const ref_iterator& l, const ref_iterator& r) noexcept {
+            return (l <=> r) >= 0;
+        }
+
+        constexpr friend bool operator==(const ref_iterator& l, const ref_iterator& r) noexcept {
+            return (l <=> r) == 0;
+        }
+
+        constexpr friend bool operator!=(const ref_iterator& l, const ref_iterator& r) noexcept {
+            return (l <=> r) != 0;
         }
 
         constexpr friend ref_iterator operator+(ref_iterator that, difference_type offset) noexcept {
@@ -253,19 +347,22 @@ private:
             return that;
         }
 
+        constexpr friend difference_type operator-(const ref_iterator& l, const ref_iterator& r) noexcept {
+            return difference_type(l.idx) - difference_type(r.idx);
+        }
+
     private:
         container_type* container = {};
         std::size_t idx = std::numeric_limits<std::size_t>::max();
     };
 
 public:
+    using original_type = T;
     using value_type = reference;
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
-    using pointer = void;
-    using const_pointer = void;
-    using iterator = ref_iterator<false>;
-    using const_iterator = ref_iterator<true>;
+    using iterator = ref_iterator<iter_kind::regular>;
+    using const_iterator = ref_iterator<iter_kind::constant>;
 
     template <mrf::bucket_id Id>
     constexpr const auto& bucket() const {
@@ -411,7 +508,9 @@ public:
             [this]<storage_member_stat StorageMemberStat> { storage.[:StorageMemberStat.storage_member:].pop_back(); });
     }
 
-    constexpr void resize(size_type new_size) requires std::is_default_constructible_v<T> {
+    constexpr void resize(size_type new_size)
+        requires std::is_default_constructible_v<T>
+    {
         resize(new_size, T{});
     }
 

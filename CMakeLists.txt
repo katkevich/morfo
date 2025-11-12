@@ -6,6 +6,8 @@ set(MORFO_HEADERS
     include/morfo/morfo.hpp
     include/morfo/vector.hpp
     include/morfo/bucket.hpp
+    include/morfo/mixin.hpp
+    include/morfo/algorithm.hpp
     include/morfo/misc/static_vector.hpp
     include/morfo/misc/static_map.hpp
     include/morfo/misc/unordered_map.hpp

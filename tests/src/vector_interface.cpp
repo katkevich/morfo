@@ -1,7 +1,5 @@
 #include "doctest_comptime.hpp"
 #include <morfo/morfo.hpp>
-#include <algorithm>
-#include <tuple>
 
 namespace mrf::test::vector_interface {
 
@@ -160,5 +158,123 @@ MRF_TEST_CASE("iterate non-const vector") {
     };
 
     MRF_REQUIRE(std::ranges::equal(actual, expected));
+}
+
+MRF_TEST_CASE("ensure mrf::vector<T>::iterator is indeed random access") {
+    mrf::vector<Person> persons;
+    persons.push_back(Person{ 1, 19, "Alice", "Bay" });
+    persons.push_back(Person{ 2, 25, "Bob", "Guy" });
+    persons.push_back(Person{ 3, 33, "Jesus", "Christs" });
+
+    mrf::vector<Person>::iterator it = persons.begin();
+    mrf::vector<Person>::iterator end = persons.end();
+
+    MRF_CHECK(it < end);
+    MRF_CHECK(it <= end);
+    MRF_CHECK(it + 3 <= end);
+    MRF_CHECK(end > it);
+    MRF_CHECK(end >= it);
+    MRF_CHECK(end >= it + 3);
+    MRF_CHECK(it != end);
+    MRF_CHECK(it + 3 == end);
+
+    MRF_CHECK_EQ(it->age, 19);
+    MRF_CHECK_EQ((it + 1)->age, 25);
+    MRF_CHECK_EQ((++it)->age, 25);
+    MRF_CHECK_EQ((it - 1)->age, 19);
+    MRF_CHECK_EQ((--it)->age, 19);
+    MRF_CHECK_EQ((it++)->age, 19);
+    MRF_CHECK_EQ(it->age, 25);
+    MRF_CHECK_EQ((it--)->age, 25);
+    MRF_CHECK_EQ(it->age, 19);
+
+    MRF_CHECK_EQ(it, persons.begin());
+    ++it;
+    MRF_CHECK_EQ(it[1], persons[2]);
+
+    mrf::vector<Person>::iterator default1, default2;
+    MRF_CHECK_EQ(default1, default2); // default iterator is only equal to another default iterator
+    MRF_CHECK_NE(default1, persons.end());
+    MRF_CHECK_NE(default1, persons.begin());
+
+    MRF_CHECK_EQ((end - 1)->age, 33);
+
+    MRF_CHECK_EQ(persons.end() - persons.begin(), 3);
+    MRF_CHECK_EQ(persons.begin() - persons.end(), -3);
+
+    static_assert(std::random_access_iterator<mrf::vector<Person>::iterator>);
+    static_assert(std::random_access_iterator<mrf::vector<Person>::const_iterator>);
+}
+
+MRF_TEST_CASE("mrf::vector<T>::iterator/const_iterator const propagation") {
+    mrf::vector<Person> persons;
+    persons.push_back(Person{ 1, 19, "Alice", "Bay" });
+    persons.push_back(Person{ 2, 25, "Bob", "Guy" });
+    persons.push_back(Person{ 3, 33, "Jesus", "Christs" });
+
+    {
+        mrf::vector<Person>::iterator it = persons.begin();
+        mrf::vector<Person>::iterator end = persons.end();
+        mrf::vector<Person>::const_iterator cit = persons.cbegin();
+        mrf::vector<Person>::const_iterator cend = persons.cend();
+
+        static_assert(!std::is_const_v<std::remove_reference_t<decltype(it->name)>>);
+        static_assert(std::is_const_v<std::remove_reference_t<decltype(cit->name)>>);
+    }
+    {
+        const mrf::vector<Person> const_persons = persons;
+        mrf::vector<Person>::const_iterator it = persons.begin();
+        mrf::vector<Person>::const_iterator end = persons.end();
+        mrf::vector<Person>::const_iterator cit = persons.cbegin();
+        mrf::vector<Person>::const_iterator cend = persons.cend();
+
+        static_assert(std::is_const_v<std::remove_reference_t<decltype(it->name)>>);
+        static_assert(std::is_const_v<std::remove_reference_t<decltype(cit->name)>>);
+    }
+}
+
+MRF_TEST_CASE("mrf::vector<T>::iterator to const_iterator convertion") {
+
+    static_assert(std::is_convertible_v<mrf::vector<Person>::iterator, mrf::vector<Person>::const_iterator>);
+    /* but not vise versa */
+    static_assert(!std::is_convertible_v<mrf::vector<Person>::const_iterator, mrf::vector<Person>::iterator>);
+
+    mrf::vector<Person> persons;
+    persons.push_back(Person{ 1, 19, "Alice", "Bay" });
+    persons.push_back(Person{ 2, 25, "Bob", "Guy" });
+
+    mrf::vector<Person>::iterator nonconst_it(persons.begin());
+    /* ctor implicit convertion */
+    mrf::vector<Person>::const_iterator const_it(persons.begin());
+
+    /* assignment implicit convertion */
+    mrf::vector<Person>::const_iterator const_it_assign;
+    const_it_assign = nonconst_it;
+
+    /* comparison implicit conversion */
+    MRF_REQUIRE_EQ(nonconst_it, const_it);
+    MRF_REQUIRE_EQ(const_it, nonconst_it);
+
+    MRF_REQUIRE_LE(nonconst_it, const_it);
+    MRF_REQUIRE_LE(const_it, nonconst_it);
+
+    MRF_REQUIRE_GE(nonconst_it, const_it);
+    MRF_REQUIRE_GE(const_it, nonconst_it);
+
+    ++const_it;
+    MRF_REQUIRE_LT(nonconst_it, const_it);
+    MRF_REQUIRE_GT(const_it, nonconst_it);
+    MRF_REQUIRE(((nonconst_it <=> const_it) < 0));
+
+    --const_it;
+    ++nonconst_it;
+    MRF_REQUIRE_GT(nonconst_it, const_it);
+    MRF_REQUIRE_LT(const_it, nonconst_it);
+    MRF_REQUIRE(((const_it <=> nonconst_it) < 0));
+
+    MRF_CHECK_EQ(persons.cend() - persons.begin(), 2);
+    MRF_CHECK_EQ(persons.end() - persons.cbegin(), 2);
+    MRF_CHECK_EQ(persons.cbegin() - persons.end(), -2);
+    MRF_CHECK_EQ(persons.begin() - persons.cend(), -2);
 }
 } // namespace mrf::test::vector_interface
