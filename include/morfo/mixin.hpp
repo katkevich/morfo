@@ -1,26 +1,109 @@
 #pragma once
+#include "morfo/type_traits.hpp"
 #include <compare>
 #include <vector>
 
 namespace mrf::mixin {
 
+template <typename TOriginal>
 struct into_mixin {
-    /* Copy the content of 'morfo' reference back into its original type */
-    template <typename TSelf>
+    /* Copy the content of 'morfo' into 'TInto' type (original type by default) */
+    template <typename TInto = TOriginal, typename TSelf>
     constexpr auto into(this const TSelf& self) {
-        return self.forward_into();
+        return self.template forward_into<TInto>();
     }
 
-    /* Copy or "steal" (move form rvalue) the content of 'morfo' reference back into its original type */
-    template <typename TSelf>
-    constexpr auto forward_into(this TSelf&& self) {
-        using reference_type = std::remove_cvref_t<TSelf>;
-        using original_type = typename reference_type::original_type;
+    /* "Steal" (move from lvalue/rvalue) the content of 'morfo' reference into 'TInto' type (original type by default) */
+    template <typename TInto = TOriginal, typename TSelf>
+    constexpr auto steal_into(this TSelf&& self) {
+        return std::move(self).template forward_into<TInto>();
+    }
 
-        return [&self]<std::size_t... Is>(std::index_sequence<Is...>) {
-            constexpr auto nsdm = mrf::nsdm_of(^^reference_type);
-            return original_type{ std::forward_like<TSelf>(self.[:nsdm[Is]:])... };
-        }(std::make_index_sequence<mrf::nsdm_size_of(^^reference_type)>{});
+    /* Copy (from lvalue) or "steal" (move from rvalue) the content of 'morfo' reference into 'TInto' type (original type by default) */
+    template <typename TInto = TOriginal, typename TSelf>
+    constexpr auto forward_into(this TSelf&& self) {
+        return mrf::spread<mrf::nsdm_of<^^mrf::storage_t<TSelf>>()>([&self]<std::meta::info... Members> { //
+            return TInto{ std::forward_like<TSelf>(self.[:Members:])... };
+        });
+    }
+
+    /* "Steal" (move from lvalue/rvalue) the content of 'morfo' reference into std::tuple */
+    template <typename TSelf>
+    constexpr auto steal_into_tuple(this TSelf&& self) {
+        return std::move(self).forward_into_tuple();
+    }
+
+    /* Copy (from lvalue) or "steal" (move from rvalue) the content of 'morfo' reference into std::tuple */
+    template <typename TSelf>
+    constexpr auto forward_into_tuple(this TSelf&& self) {
+        return mrf::spread<mrf::nsdm_of<^^mrf::storage_t<TSelf>>()>([&self]<std::meta::info... Members> {
+            return std::make_tuple(std::forward_like<TSelf>(self.[:Members:])...);
+        });
+    }
+};
+
+template <typename TOriginal>
+struct from_mixin {
+    template <typename TSelf, typename UOriginal>
+        requires std::same_as<TOriginal, std::remove_cvref_t<UOriginal>>
+    constexpr void from(this TSelf&& self, UOriginal&& other) {
+        constexpr auto self_nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto other_nsdm = mrf::nsdm_of<^^TOriginal>();
+        constexpr auto Is = mrf::make_index_sequence<self_nsdm.size()>();
+
+        template for (constexpr auto I : Is) {
+            self.[:self_nsdm[I]:] = std::forward<UOriginal>(other).[:other_nsdm[I]:];
+        }
+    }
+
+    template <typename TSelf, typename TTuple>
+        requires mrf::is_specialization_of_v<std::tuple, TTuple>
+    constexpr void from(this TSelf&& self, TTuple&& tuple) {
+        constexpr auto nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto Is = mrf::make_index_sequence<nsdm.size()>();
+
+        template for (constexpr auto I : Is) {
+            self.[:nsdm[I]:] = std::get<I>(std::forward<TTuple>(tuple));
+        }
+    }
+
+    template <typename TSelf, typename USelf>
+        requires std::same_as<std::remove_cvref_t<TSelf>, std::remove_cvref_t<USelf>>
+    constexpr void from(this TSelf&& self, USelf&& other) {
+        template for (constexpr auto member : mrf::nsdm_of(^^mrf::storage_t<TSelf>)) {
+            self.[:member:] = other.[:member:];
+        }
+    }
+
+    template <typename TSelf, typename UOriginal>
+        requires std::same_as<TOriginal, std::remove_cvref_t<UOriginal>>
+    constexpr void steal_from(this TSelf&& self, UOriginal&& other) {
+        constexpr auto self_nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto other_nsdm = mrf::nsdm_of<^^TOriginal>();
+        constexpr auto Is = mrf::make_index_sequence<self_nsdm.size()>();
+
+        template for (constexpr auto I : Is) {
+            self.[:self_nsdm[I]:] = std::move(other.[:other_nsdm[I]:]);
+        }
+    }
+
+    template <typename TSelf, typename TTuple>
+        requires mrf::is_specialization_of_v<std::tuple, TTuple>
+    constexpr void steal_from(this TSelf&& self, TTuple&& tuple) {
+        constexpr auto nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto Is = mrf::make_index_sequence<nsdm.size()>();
+
+        template for (constexpr auto I : Is) {
+            self.[:nsdm[I]:] = std::move(std::get<I>(tuple));
+        }
+    }
+
+    template <typename TSelf, typename USelf>
+        requires std::same_as<std::remove_cvref_t<TSelf>, std::remove_cvref_t<USelf>>
+    constexpr void steal_from(this TSelf&& self, USelf&& other) {
+        template for (constexpr auto member : mrf::nsdm_of(^^mrf::storage_t<TSelf>)) {
+            self.[:member:] = std::move(other.[:member:]);
+        }
     }
 };
 
@@ -53,7 +136,7 @@ struct cmp_mixin {
                 return res;
             }
         }
-        
+
         return std::strong_ordering::equal;
     }
 

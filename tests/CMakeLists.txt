@@ -13,11 +13,16 @@ FetchContent_MakeAvailable(doctest)
 add_executable(morfo_tests
     src/vector_interface.cpp
     src/annotations.cpp
+    src/sort.cpp
+    src/mixin.cpp
 )
 target_sources(morfo_tests PRIVATE
     FILE_SET morfo_tests_headers TYPE HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-    FILES doctest_comptime.hpp
+    FILES
+        doctest_comptime.hpp
+        doctest_fuzzing.hpp
+        doctest_pp.hpp
 )
 target_link_libraries(morfo_tests morfo::morfo doctest::doctest_with_main)
 target_compile_definitions(morfo_tests PUBLIC

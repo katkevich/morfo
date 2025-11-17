@@ -12,17 +12,17 @@ struct Person {
     auto operator<=>(const Person&) const = default;
 };
 
-MRF_TEST_CASE("default constructed mrf::vector should be empty") {
+MRF_TEST_CASE_CTRT("default constructed mrf::vector should be empty") {
     mrf::vector<Person> persons;
     MRF_REQUIRE(persons.empty());
 }
 
-MRF_TEST_CASE("default constructed mrf::vector should have size 0") {
+MRF_TEST_CASE_CTRT("default constructed mrf::vector should have size 0") {
     mrf::vector<Person> persons;
     MRF_REQUIRE_EQ(persons.size(), 0);
 }
 
-MRF_TEST_CASE("mrf::vector push_back indeed pushes items to the back") {
+MRF_TEST_CASE_CTRT("mrf::vector push_back indeed pushes items to the back") {
     mrf::vector<Person> persons;
     persons.push_back(Person{ 1, 19, "Bob", "Guy" });
     persons.push_back(Person{ 1, 25, "Alice", "Guy" });
@@ -32,7 +32,7 @@ MRF_TEST_CASE("mrf::vector push_back indeed pushes items to the back") {
     MRF_REQUIRE_EQ(persons.back().name, "Alice");
 }
 
-MRF_TEST_CASE("resize should default-construct items") {
+MRF_TEST_CASE_CTRT("resize should default-construct items") {
     mrf::vector<Person> persons;
     MRF_CHECK_EQ(persons.size(), 0);
 
@@ -42,7 +42,7 @@ MRF_TEST_CASE("resize should default-construct items") {
     MRF_REQUIRE_EQ(persons.back().name, "default_name");
 }
 
-MRF_TEST_CASE("resize with default value should override default-initialilzers of the members") {
+MRF_TEST_CASE_CTRT("resize with default value should override default-initialilzers of the members") {
     mrf::vector<Person> persons;
 
     persons.resize(2, Person{ 1, 19, "Ken", "Block" });
@@ -51,7 +51,7 @@ MRF_TEST_CASE("resize with default value should override default-initialilzers o
     MRF_REQUIRE_EQ(persons.back().surname, "Block");
 }
 
-MRF_TEST_CASE("reserve should increase the capacity but not the size") {
+MRF_TEST_CASE_CTRT("reserve should increase the capacity but not the size") {
     mrf::vector<Person> persons;
     MRF_CHECK_EQ(persons.capacity(), 0);
 
@@ -60,7 +60,7 @@ MRF_TEST_CASE("reserve should increase the capacity but not the size") {
     MRF_REQUIRE_EQ(persons.size(), 0);
 }
 
-MRF_TEST_CASE("clear should remove all items but keep the capacity unchanged") {
+MRF_TEST_CASE_CTRT("clear should remove all items but keep the capacity unchanged") {
     mrf::vector<Person> persons;
     persons.push_back(Person{ 1, 19, "Bob", "Guy" });
     persons.push_back(Person{ 1, 25, "Alice", "Guy" });
@@ -75,7 +75,7 @@ MRF_TEST_CASE("clear should remove all items but keep the capacity unchanged") {
     MRF_REQUIRE_EQ(persons.size(), 0);
 }
 
-MRF_TEST_CASE("shrink_to_fit should shrink the capacity to the size of items count") {
+MRF_TEST_CASE_CTRT("shrink_to_fit should shrink the capacity to the size of items count") {
     mrf::vector<Person> persons;
     persons.push_back(Person{ 1, 19, "Bob", "Guy" });
     persons.push_back(Person{ 1, 25, "Alice", "Guy" });
@@ -90,7 +90,7 @@ MRF_TEST_CASE("shrink_to_fit should shrink the capacity to the size of items cou
     MRF_REQUIRE_EQ(persons.size(), 3);
 }
 
-MRF_TEST_CASE("pop_back should remove last element but keep the capacity unchanged") {
+MRF_TEST_CASE_CTRT("pop_back should remove last element but keep the capacity unchanged") {
     mrf::vector<Person> persons;
     persons.push_back(Person{ 1, 19, "Bob", "Guy" });
     persons.push_back(Person{ 1, 25, "Alice", "Guy" });
@@ -105,7 +105,7 @@ MRF_TEST_CASE("pop_back should remove last element but keep the capacity unchang
     MRF_REQUIRE_EQ(persons.size(), 2);
 }
 
-MRF_TEST_CASE("swap should swap underlying buckets for two mrf::vector") {
+MRF_TEST_CASE_CTRT("swap should swap underlying buckets for two mrf::vector") {
     mrf::vector<Person> persons0;
     persons0.push_back(Person{ 1, 19, "Alice", "Bay" });
 
@@ -123,7 +123,7 @@ MRF_TEST_CASE("swap should swap underlying buckets for two mrf::vector") {
     MRF_REQUIRE_EQ(persons1.back().name, "Bob");
 }
 
-MRF_TEST_CASE("emplace_back should emplace non-default constructible item") {
+MRF_TEST_CASE_CTRT("emplace_back should emplace non-default constructible item") {
     struct Pers {
         Pers() = delete;
         constexpr Pers(int id, std::string name)
@@ -139,7 +139,7 @@ MRF_TEST_CASE("emplace_back should emplace non-default constructible item") {
     MRF_REQUIRE_EQ(persons.back().name, "Alice");
 }
 
-MRF_TEST_CASE("iterate non-const vector") {
+MRF_TEST_CASE_CTRT("iterate non-const vector") {
     mrf::vector<Person> persons;
     persons.push_back(Person{ 1, 19, "Alice", "Bay" });
     persons.push_back(Person{ 2, 25, "Bob", "Guy" });
@@ -160,7 +160,7 @@ MRF_TEST_CASE("iterate non-const vector") {
     MRF_REQUIRE(std::ranges::equal(actual, expected));
 }
 
-MRF_TEST_CASE("ensure mrf::vector<T>::iterator is indeed random access") {
+MRF_TEST_CASE_CTRT("ensure mrf::vector<T>::iterator is indeed random access") {
     mrf::vector<Person> persons;
     persons.push_back(Person{ 1, 19, "Alice", "Bay" });
     persons.push_back(Person{ 2, 25, "Bob", "Guy" });
@@ -206,7 +206,7 @@ MRF_TEST_CASE("ensure mrf::vector<T>::iterator is indeed random access") {
     static_assert(std::random_access_iterator<mrf::vector<Person>::const_iterator>);
 }
 
-MRF_TEST_CASE("mrf::vector<T>::iterator/const_iterator const propagation") {
+MRF_TEST_CASE_CTRT("mrf::vector<T>::iterator/const_iterator const propagation") {
     mrf::vector<Person> persons;
     persons.push_back(Person{ 1, 19, "Alice", "Bay" });
     persons.push_back(Person{ 2, 25, "Bob", "Guy" });
@@ -233,7 +233,7 @@ MRF_TEST_CASE("mrf::vector<T>::iterator/const_iterator const propagation") {
     }
 }
 
-MRF_TEST_CASE("mrf::vector<T>::iterator to const_iterator convertion") {
+MRF_TEST_CASE_CTRT("mrf::vector<T>::iterator to const_iterator convertion") {
 
     static_assert(std::is_convertible_v<mrf::vector<Person>::iterator, mrf::vector<Person>::const_iterator>);
     /* but not vise versa */

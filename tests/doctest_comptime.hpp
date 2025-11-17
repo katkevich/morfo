@@ -71,19 +71,34 @@
         REQUIRE_GE(actual, expected);    \
     }
 
-#define MRF_TEST_CASE_IMPL(f, name)                                                               \
-    static constexpr void f();                                                                    \
-    template <auto Fn>                                                                            \
-    void DOCTEST_CAT(f, _comptime)() {                                                            \
-        [[maybe_unused]] constexpr int _ = (Fn(), 0);                                             \
-    }                                                                                             \
-    template <auto Fn>                                                                            \
-    void DOCTEST_CAT(f, _runtime)() {                                                             \
-        Fn();                                                                                     \
-    }                                                                                             \
-    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _runtime) < f >, "[runtime] " name)   \
-    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _comptime) < f >, "[comptime] " name) \
+#define MRF_TEST_CASE_CTRT_IMPL(f, name)                                                    \
+    static constexpr void f();                                                              \
+    template <auto Fn>                                                                      \
+    void DOCTEST_CAT(f, _comptime)() {                                                      \
+        [[maybe_unused]] constexpr int _ = (Fn(), 0);                                       \
+    }                                                                                       \
+    template <auto Fn>                                                                      \
+    void DOCTEST_CAT(f, _runtime)() {                                                       \
+        Fn();                                                                               \
+    }                                                                                       \
+    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _runtime) < f >, name)          \
+    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _comptime) < f >, "[ct] " name) \
     static constexpr void f()
 
-/* Ensure test is able to run in both runtime and compiletime contexts */
-#define MRF_TEST_CASE(name) MRF_TEST_CASE_IMPL(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), name)
+#define MRF_TEST_CASE_CT_IMPL(f, name)                                                      \
+    static constexpr void f();                                                              \
+    template <auto Fn>                                                                      \
+    void DOCTEST_CAT(f, _comptime)() {                                                      \
+        [[maybe_unused]] constexpr int _ = (Fn(), 0);                                       \
+    }                                                                                       \
+    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _comptime) < f >, "[ct] " name) \
+    static constexpr void f()
+
+/* Run test in both runtime and compile time. */
+#define MRF_TEST_CASE_CTRT(name) MRF_TEST_CASE_CTRT_IMPL(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), name)
+
+/* Run test in compile time. */
+#define MRF_TEST_CASE_CT(name) MRF_TEST_CASE_CT_IMPL(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), name)
+
+/* Run test in runtime. */
+#define MRF_TEST_CASE_RT(name) TEST_CASE(name)

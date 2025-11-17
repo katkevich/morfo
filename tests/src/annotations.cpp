@@ -2,7 +2,7 @@
 #include <morfo/morfo.hpp>
 
 namespace mrf::test::annotations {
-MRF_TEST_CASE("class-level annotation moves all non-annotated members into a default bucket") {
+MRF_TEST_CASE_CTRT("class-level annotation moves all non-annotated members into a default bucket") {
     struct[[= mrf::hot]] Person {
         int age = 0;
         std::string_view name;
@@ -17,7 +17,7 @@ MRF_TEST_CASE("class-level annotation moves all non-annotated members into a def
     MRF_CHECK_EQ(bucket[0].name, "Ann");
 }
 
-MRF_TEST_CASE("absence of the class annotation and member annotation moves member into its own named bucket") {
+MRF_TEST_CASE_CTRT("absence of the class annotation and member annotation moves member into its own named bucket") {
     struct Person {
         int age = 0;
         std::string_view name;
@@ -33,7 +33,7 @@ MRF_TEST_CASE("absence of the class annotation and member annotation moves membe
     MRF_CHECK_EQ(name_bucket[0].name, "Ann");
 }
 
-MRF_TEST_CASE("members marked with the same member annotation go into the same bucket") {
+MRF_TEST_CASE_CTRT("members marked with the same member annotation go into the same bucket") {
     struct Person {
         int age = 0;
         [[= mrf::cold]] std::string_view name;
@@ -51,7 +51,7 @@ MRF_TEST_CASE("members marked with the same member annotation go into the same b
     MRF_CHECK_EQ(cold_bucket[0].surname, "Lovelance");
 }
 
-MRF_TEST_CASE("members annotations override class annotation (basically class annotation define the default)") {
+MRF_TEST_CASE_CTRT("members annotations override class annotation (basically class annotation define the default)") {
     struct[[= mrf::cold]] Person {
         int age = 0;
         [[= mrf::hot]] std::string_view name;
@@ -69,7 +69,7 @@ MRF_TEST_CASE("members annotations override class annotation (basically class an
     MRF_CHECK_EQ(cold_bucket[0].surname, "Lovelance");
 }
 
-MRF_TEST_CASE("user-defined bucket tag") {
+MRF_TEST_CASE_CTRT("user-defined bucket tag") {
     struct rare_access;
     struct Person {
         int age = 0;

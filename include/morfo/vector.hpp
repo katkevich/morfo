@@ -163,13 +163,13 @@ private:
     }
 
 public:
-    struct reference : reference_storage_type, mrf::mixin::into_mixin, mrf::mixin::cmp_mixin {
+    struct reference : reference_storage_type, mrf::mixin::into_mixin<T>, mrf::mixin::from_mixin<T>, mrf::mixin::cmp_mixin {
         using original_type = T;
         using vector_type = mrf::vector<T>;
         using storage_type = reference_storage_type;
     };
 
-    struct const_reference : const_reference_storage_type, mrf::mixin::into_mixin, mrf::mixin::cmp_mixin {
+    struct const_reference : const_reference_storage_type, mrf::mixin::into_mixin<T>, mrf::mixin::cmp_mixin {
         using original_type = T;
         using vector_type = mrf::vector<T>;
         using storage_type = const_reference_storage_type;

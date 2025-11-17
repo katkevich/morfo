@@ -26,17 +26,34 @@ static consteval auto to_array() {
 }
 } // namespace str
 
+template <std::size_t N>
+consteval auto make_index_sequence() {
+    std::array<std::size_t, N> indices;
+    for (std::size_t i = 0; i < N; ++i) {
+        indices[i] = i;
+    }
+    return indices;
+}
+
 template <std::meta::info item>
 consteval auto name_of() {
     return mrf::str::to_array<define_static_string(identifier_of(item))>();
+}
+
+consteval auto nsdm_size_of(std::meta::info type) {
+    return nonstatic_data_members_of(type, std::meta::access_context::unchecked()).size();
 }
 
 consteval auto nsdm_of(std::meta::info type) {
     return define_static_array(nonstatic_data_members_of(type, std::meta::access_context::unchecked()));
 }
 
-consteval auto nsdm_size_of(std::meta::info type) {
-    return nonstatic_data_members_of(type, std::meta::access_context::unchecked()).size();
+template <std::meta::info Type>
+consteval auto nsdm_of() {
+    return []<std::size_t... Is>(std::index_sequence<Is...>) {
+        constexpr auto nsdm = define_static_array(nonstatic_data_members_of(Type, std::meta::access_context::unchecked()));
+        return std::array{ nsdm[Is]... };
+    }(std::make_index_sequence<nsdm_size_of(Type)>());
 }
 
 template <auto Array, typename Fn>
