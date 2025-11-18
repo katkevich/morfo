@@ -1,7 +1,7 @@
 #pragma once
 #include "morfo/misc/static_vector.hpp"
 
-namespace mrf {
+namespace mrf::misc {
 template <typename TKey, typename TValue, std::size_t Capacity>
 struct static_map {
     using key_type = TKey;
@@ -18,8 +18,8 @@ struct static_map {
         }
     }
 
-    mrf::static_vector<TKey, Capacity> keys{};
-    mrf::static_vector<TValue, Capacity> values{};
+    misc::static_vector<TKey, Capacity> keys{};
+    misc::static_vector<TValue, Capacity> values{};
     std::size_t size{};
 
     static constexpr std::size_t capacity = Capacity;
@@ -28,10 +28,10 @@ struct static_map {
 template <auto StaticMap, typename Fn>
 constexpr void static_map_foreach(Fn fn) {
     [&fn]<std::size_t... Idx>(std::index_sequence<Idx...>) {
-        constexpr std::array keys_array = mrf::static_vector_into_array<StaticMap.keys>();
-        constexpr std::array values_array = mrf::static_vector_into_array<StaticMap.values>();
-        
+        constexpr std::array keys_array = misc::static_vector_into_array<StaticMap.keys>();
+        constexpr std::array values_array = misc::static_vector_into_array<StaticMap.values>();
+
         (fn.template operator()<keys_array[Idx], values_array[Idx]>(), ...);
     }(std::make_index_sequence<StaticMap.size>());
 }
-} // namespace mrf
+} // namespace mrf::misc

@@ -17,7 +17,7 @@ MRF_TEST_CASE_CTRT("class-level annotation moves all non-annotated members into 
     MRF_CHECK_EQ(bucket[0].name, "Ann");
 }
 
-MRF_TEST_CASE_CTRT("absence of the class annotation and member annotation moves member into its own named bucket") {
+MRF_TEST_CASE_CTRT("absence of the class annotation and member annotation moves member into its own unique bucket") {
     struct Person {
         int age = 0;
         std::string_view name;
@@ -26,8 +26,8 @@ MRF_TEST_CASE_CTRT("absence of the class annotation and member annotation moves 
     mrf::vector<Person> persons;
     persons.push_back(Person{ 19, "Ann" });
 
-    const std::vector<mrf::bucket<Person, "age">>& age_bucket = persons.bucket<"age">();
-    const std::vector<mrf::bucket<Person, "name">>& name_bucket = persons.bucket<"name">();
+    const std::vector<mrf::bucket<Person, ^^Person::age>>& age_bucket = persons.bucket<^^Person::age>();
+    const std::vector<mrf::bucket<Person, ^^Person::name>>& name_bucket = persons.bucket<^^Person::name>();
 
     MRF_CHECK_EQ(age_bucket[0].age, 19);
     MRF_CHECK_EQ(name_bucket[0].name, "Ann");
@@ -43,7 +43,7 @@ MRF_TEST_CASE_CTRT("members marked with the same member annotation go into the s
     mrf::vector<Person> persons;
     persons.push_back(Person{ 27, "Ada", "Lovelance" });
 
-    const std::vector<mrf::bucket<Person, "age">>& age_bucket = persons.bucket<"age">();
+    const std::vector<mrf::bucket<Person, ^^Person::age>>& age_bucket = persons.bucket<^^Person::age>();
     const std::vector<mrf::bucket<Person, mrf::cold>>& cold_bucket = persons.bucket<mrf::cold>();
 
     MRF_CHECK_EQ(age_bucket[0].age, 27);

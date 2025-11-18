@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace mrf {
+namespace mrf::misc {
 template <typename T>
 class set {
 public:
@@ -24,4 +24,4 @@ public:
         }
     }
 };
-} // namespace mrf
+} // namespace mrf::misc

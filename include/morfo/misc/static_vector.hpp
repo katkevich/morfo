@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <utility>
 
-namespace mrf {
+namespace mrf::misc {
 
 template <typename T, std::size_t Capacity>
 struct static_vector {
@@ -35,7 +35,7 @@ constexpr auto static_vector_into_array() {
 template <auto StaticVector, typename Fn>
 constexpr void static_vector_foreach(Fn fn) {
     [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
-        constexpr std::array arr = mrf::static_vector_into_array<StaticVector>();
+        constexpr std::array arr = misc::static_vector_into_array<StaticVector>();
         (fn.template operator()<arr[Idx]>(), ...);
     }(std::make_index_sequence<StaticVector.size>());
 }
@@ -43,8 +43,8 @@ constexpr void static_vector_foreach(Fn fn) {
 template <auto StaticVector, typename Fn>
 constexpr decltype(auto) static_vector_spread(Fn fn) {
     return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) -> decltype(auto) {
-        constexpr std::array arr = mrf::static_vector_into_array<StaticVector>();
+        constexpr std::array arr = misc::static_vector_into_array<StaticVector>();
         return fn.template operator()<arr[Idx]...>();
     }(std::make_index_sequence<StaticVector.size>());
 }
-} // namespace mrf
+} // namespace mrf::misc

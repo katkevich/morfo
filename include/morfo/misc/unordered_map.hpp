@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <vector>
 
-namespace mrf {
+namespace mrf::misc {
 
-// std::unordered_map ain't supported in constant expressions yet hence this custom mrf::unordered_map
+// std::unordered_map ain't supported in constant expressions yet hence this custom misc::unordered_map
 template <typename TKey, typename TVal>
 class unordered_map {
 public:
@@ -31,4 +31,4 @@ public:
 
     std::vector<item> items;
 };
-} // namespace mrf
+} // namespace mrf::misc

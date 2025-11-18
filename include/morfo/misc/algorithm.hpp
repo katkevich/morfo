@@ -4,8 +4,7 @@
 #include <utility>
 #include <vector>
 
-namespace mrf {
-namespace str {
+namespace mrf::misc {
 template <char const* String>
 static consteval std::size_t strlen() {
     std::size_t length = 0;
@@ -16,7 +15,7 @@ static consteval std::size_t strlen() {
 
 template <char const* String>
 static consteval auto to_array() {
-    constexpr std::size_t length = mrf::str::strlen<String>();
+    constexpr std::size_t length = strlen<String>();
 
     std::array<char, length + 1> arr{}; // + '\0'
     for (std::size_t i = 0; i < length; ++i)
@@ -24,7 +23,6 @@ static consteval auto to_array() {
 
     return arr;
 }
-} // namespace str
 
 template <std::size_t N>
 consteval auto make_index_sequence() {
@@ -37,7 +35,7 @@ consteval auto make_index_sequence() {
 
 template <std::meta::info item>
 consteval auto name_of() {
-    return mrf::str::to_array<define_static_string(identifier_of(item))>();
+    return to_array<define_static_string(identifier_of(item))>();
 }
 
 consteval auto nsdm_size_of(std::meta::info type) {
@@ -75,4 +73,4 @@ struct always_false {
     static constexpr bool value = false;
 };
 
-} // namespace mrf
+} // namespace mrf::misc

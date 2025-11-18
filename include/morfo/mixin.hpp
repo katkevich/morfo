@@ -22,7 +22,7 @@ struct into_mixin {
     /* Copy (from lvalue) or "steal" (move from rvalue) the content of 'morfo' reference into 'TInto' type (original type by default) */
     template <typename TInto = TOriginal, typename TSelf>
     constexpr auto forward_into(this TSelf&& self) {
-        return mrf::spread<mrf::nsdm_of<^^mrf::storage_t<TSelf>>()>([&self]<std::meta::info... Members> { //
+        return misc::spread<misc::nsdm_of<^^mrf::storage_t<TSelf>>()>([&self]<std::meta::info... Members> { //
             return TInto{ std::forward_like<TSelf>(self.[:Members:])... };
         });
     }
@@ -36,7 +36,7 @@ struct into_mixin {
     /* Copy (from lvalue) or "steal" (move from rvalue) the content of 'morfo' reference into std::tuple */
     template <typename TSelf>
     constexpr auto forward_into_tuple(this TSelf&& self) {
-        return mrf::spread<mrf::nsdm_of<^^mrf::storage_t<TSelf>>()>([&self]<std::meta::info... Members> {
+        return misc::spread<misc::nsdm_of<^^mrf::storage_t<TSelf>>()>([&self]<std::meta::info... Members> {
             return std::make_tuple(std::forward_like<TSelf>(self.[:Members:])...);
         });
     }
@@ -47,9 +47,9 @@ struct from_mixin {
     template <typename TSelf, typename UOriginal>
         requires std::same_as<TOriginal, std::remove_cvref_t<UOriginal>>
     constexpr void from(this TSelf&& self, UOriginal&& other) {
-        constexpr auto self_nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
-        constexpr auto other_nsdm = mrf::nsdm_of<^^TOriginal>();
-        constexpr auto Is = mrf::make_index_sequence<self_nsdm.size()>();
+        constexpr auto self_nsdm = misc::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto other_nsdm = misc::nsdm_of<^^TOriginal>();
+        constexpr auto Is = misc::make_index_sequence<self_nsdm.size()>();
 
         template for (constexpr auto I : Is) {
             self.[:self_nsdm[I]:] = std::forward<UOriginal>(other).[:other_nsdm[I]:];
@@ -59,8 +59,8 @@ struct from_mixin {
     template <typename TSelf, typename TTuple>
         requires mrf::is_specialization_of_v<std::tuple, TTuple>
     constexpr void from(this TSelf&& self, TTuple&& tuple) {
-        constexpr auto nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
-        constexpr auto Is = mrf::make_index_sequence<nsdm.size()>();
+        constexpr auto nsdm = misc::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto Is = misc::make_index_sequence<nsdm.size()>();
 
         template for (constexpr auto I : Is) {
             self.[:nsdm[I]:] = std::get<I>(std::forward<TTuple>(tuple));
@@ -70,7 +70,7 @@ struct from_mixin {
     template <typename TSelf, typename USelf>
         requires std::same_as<std::remove_cvref_t<TSelf>, std::remove_cvref_t<USelf>>
     constexpr void from(this TSelf&& self, USelf&& other) {
-        template for (constexpr auto member : mrf::nsdm_of(^^mrf::storage_t<TSelf>)) {
+        template for (constexpr auto member : misc::nsdm_of(^^mrf::storage_t<TSelf>)) {
             self.[:member:] = other.[:member:];
         }
     }
@@ -78,9 +78,9 @@ struct from_mixin {
     template <typename TSelf, typename UOriginal>
         requires std::same_as<TOriginal, std::remove_cvref_t<UOriginal>>
     constexpr void steal_from(this TSelf&& self, UOriginal&& other) {
-        constexpr auto self_nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
-        constexpr auto other_nsdm = mrf::nsdm_of<^^TOriginal>();
-        constexpr auto Is = mrf::make_index_sequence<self_nsdm.size()>();
+        constexpr auto self_nsdm = misc::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto other_nsdm = misc::nsdm_of<^^TOriginal>();
+        constexpr auto Is = misc::make_index_sequence<self_nsdm.size()>();
 
         template for (constexpr auto I : Is) {
             self.[:self_nsdm[I]:] = std::move(other.[:other_nsdm[I]:]);
@@ -90,8 +90,8 @@ struct from_mixin {
     template <typename TSelf, typename TTuple>
         requires mrf::is_specialization_of_v<std::tuple, TTuple>
     constexpr void steal_from(this TSelf&& self, TTuple&& tuple) {
-        constexpr auto nsdm = mrf::nsdm_of<^^mrf::storage_t<TSelf>>();
-        constexpr auto Is = mrf::make_index_sequence<nsdm.size()>();
+        constexpr auto nsdm = misc::nsdm_of<^^mrf::storage_t<TSelf>>();
+        constexpr auto Is = misc::make_index_sequence<nsdm.size()>();
 
         template for (constexpr auto I : Is) {
             self.[:nsdm[I]:] = std::move(std::get<I>(tuple));
@@ -101,7 +101,7 @@ struct from_mixin {
     template <typename TSelf, typename USelf>
         requires std::same_as<std::remove_cvref_t<TSelf>, std::remove_cvref_t<USelf>>
     constexpr void steal_from(this TSelf&& self, USelf&& other) {
-        template for (constexpr auto member : mrf::nsdm_of(^^mrf::storage_t<TSelf>)) {
+        template for (constexpr auto member : misc::nsdm_of(^^mrf::storage_t<TSelf>)) {
             self.[:member:] = std::move(other.[:member:]);
         }
     }
@@ -131,7 +131,7 @@ struct collect_mixin {
 struct cmp_mixin {
     template <typename TSelf>
     constexpr auto operator<=>(this const TSelf& self, const TSelf& other) {
-        template for (constexpr auto member : mrf::nsdm_of(^^typename TSelf::storage_type)) {
+        template for (constexpr auto member : misc::nsdm_of(^^typename TSelf::storage_type)) {
             if (auto res = self.[:member:] <=> other.[:member:]; res != 0) {
                 return res;
             }
@@ -142,7 +142,7 @@ struct cmp_mixin {
 
     template <typename TSelf>
     constexpr auto operator==(this const TSelf& self, const TSelf& other) {
-        template for (constexpr auto member : mrf::nsdm_of(^^typename TSelf::storage_type)) {
+        template for (constexpr auto member : misc::nsdm_of(^^typename TSelf::storage_type)) {
             if (!(self.[:member:] == other.[:member:])) {
                 return false;
             }
