@@ -21,4 +21,5 @@
 
 #define MRF_FOR_EACH(macro, sep, ...) MRF_CONCAT(MRF_FOR_EACH_, MRF_VA_ARGS_COUNT(__VA_ARGS__))(macro, sep, __VA_ARGS__)
 
+#define MRF_EMPTY() 
 #define MRF_COMMA() ,

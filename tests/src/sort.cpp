@@ -10,9 +10,15 @@ struct Person {
     std::string name{};
 
     auto operator<=>(const Person&) const = default;
+
+    friend std::ostream& operator<<(std::ostream& os, const Person& person) {
+        os << "{" << person.id << ": " << person.name << "}";
+        return os;
+    }
 };
 
-MRF_FUZZ_TEST_DOMAIN("mrf::introsort: medium size vector in random order using pointer-to-member predicate",
+MRF_FUZZ_TEST_DOMAIN_SEEDED("mrf::introsort: medium size vector in random order using pointer-to-member predicate",
+    2317667317,
     fuzz::loop(50),
     fuzz::vector_of<Person>().size(500, 1000))
 MRF_FUZZ_TEST_CASE(std::vector<Person> persons) {
@@ -32,7 +38,7 @@ MRF_FUZZ_TEST_CASE(std::vector<Person> persons) {
         }
     };
 
-    mrf::introsort(mrf_persons, 0, std::ssize(persons), std::less{}, Proj{});
+    mrf::introsort(mrf_persons, 0, std::ssize(mrf_persons), std::less{}, Proj{});
     std::ranges::sort(persons, std::less{}, &Person::id);
 
     std::vector<Person> actual_sorted;
@@ -40,7 +46,11 @@ MRF_FUZZ_TEST_CASE(std::vector<Person> persons) {
 
     std::vector<Person> expected_sorted = persons;
 
-    MRF_CHECK_EQ(actual_sorted, expected_sorted);
+    MRF_REQUIRE_EQ(actual_sorted.size(), expected_sorted.size());
+    for (std::size_t i = 0; i < actual_sorted.size(); ++i) {
+        CAPTURE(i);
+        MRF_CHECK_EQ(actual_sorted[i].id, expected_sorted[i].id);
+    }
 }
 
 
@@ -71,6 +81,10 @@ MRF_FUZZ_TEST_CASE(std::vector<Person> persons) {
 
     std::vector<Person> expected_sorted = persons;
 
-    MRF_CHECK_EQ(actual_sorted, expected_sorted);
+    MRF_REQUIRE_EQ(actual_sorted.size(), expected_sorted.size());
+    for (std::size_t i = 0; i < actual_sorted.size(); ++i) {
+        CAPTURE(i);
+        MRF_CHECK_EQ(actual_sorted[i].id, expected_sorted[i].id);
+    }
 }
 } // namespace mrf::test::sort

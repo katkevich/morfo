@@ -226,44 +226,51 @@ static constexpr auto loop(int count) {
 
 #define MRF_FUZZ_TEST_DOMAIN_RESULT_TYPE_IMPL(expr) typename decltype(expr)::result_type
 
-#define MRF_IMPL_FUZZ_TEST_DOMAIN_CT(f, name, loop_count, ...)                                            \
-    static constexpr void f(MRF_FOR_EACH(MRF_FUZZ_TEST_DOMAIN_RESULT_TYPE_IMPL, MRF_COMMA, __VA_ARGS__)); \
-    template <auto Fn>                                                                                    \
-    void DOCTEST_CAT(f, _comptime)() {                                                                    \
-        [[maybe_unused]] constexpr auto _ = [] {                                                          \
-            mrf::fuzz::comptime_random_source random_source{};                                            \
-            auto domain_instances_tuple = std::tuple{ __VA_ARGS__ };                                      \
-            auto& [... domain_instances] = domain_instances_tuple;                                        \
-            for (int i = 0; i < loop_count; ++i) {                                                        \
-                Fn(domain_instances.gen(random_source)...);                                               \
-            }                                                                                             \
-            return 0;                                                                                     \
-        }();                                                                                              \
-    }                                                                                                     \
-    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _comptime) < f >, "[fuzzing] [ct] " name)     \
+#define MRF_IMPL_FUZZ_TEST_DOMAIN_CT(f, test_name, loop_count, ...)                                        \
+    static constexpr void f(MRF_FOR_EACH(MRF_FUZZ_TEST_DOMAIN_RESULT_TYPE_IMPL, MRF_COMMA, __VA_ARGS__));  \
+    template <auto Fn>                                                                                     \
+    void DOCTEST_CAT(f, _comptime)() {                                                                     \
+        [[maybe_unused]] constexpr auto _ = [] {                                                           \
+            mrf::fuzz::comptime_random_source random_source{};                                             \
+            auto domain_instances_tuple = std::tuple{ __VA_ARGS__ };                                       \
+            auto& [... domain_instances] = domain_instances_tuple;                                         \
+            for (int i = 0; i < loop_count; ++i) {                                                         \
+                Fn(domain_instances.gen(random_source)...);                                                \
+            }                                                                                              \
+            return 0;                                                                                      \
+        }();                                                                                               \
+    }                                                                                                      \
+    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _comptime) < f >, "[fuzzing] [ct] " test_name) \
     static constexpr void f
 
-#define MRF_IMPL_FUZZ_TEST_DOMAIN_RT(f, name, loop_count, ...)                                            \
+#define MRF_IMPL_FUZZ_TEST_DOMAIN_RT(f, test_name, predefined_seed, loop_count, ...)                      \
     static constexpr void f(MRF_FOR_EACH(MRF_FUZZ_TEST_DOMAIN_RESULT_TYPE_IMPL, MRF_COMMA, __VA_ARGS__)); \
     template <auto Fn>                                                                                    \
     void DOCTEST_CAT(f, _runtime)() {                                                                     \
-        mrf::fuzz::runtime_random_source random_source{};                                                 \
+        mrf::fuzz::runtime_random_source random_source{ predefined_seed };                                \
         CAPTURE(random_source.seed);                                                                      \
         auto domain_instances_tuple = std::tuple{ __VA_ARGS__ };                                          \
         auto& [... domain_instances] = domain_instances_tuple;                                            \
-        for (int i = 0; i < loop_count; ++i) {                                                            \
+        for (int iteration = 0; iteration < loop_count; ++iteration) {                                    \
+            CAPTURE(iteration);                                                                           \
             Fn(domain_instances.gen(random_source)...);                                                   \
         }                                                                                                 \
     }                                                                                                     \
-    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _runtime) < f >, "[fuzzing] " name)           \
+    DOCTEST_REGISTER_FUNCTION(DOCTEST_EMPTY, DOCTEST_CAT(f, _runtime) < f >, "[fuzzing] " test_name)      \
     static constexpr void f
 
 
-#define MRF_FUZZ_TEST_DOMAIN_CT(name, loop_count, ...) \
-    MRF_IMPL_FUZZ_TEST_DOMAIN_CT(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), name, loop_count, __VA_ARGS__)
+#define MRF_FUZZ_TEST_DOMAIN_CT(test_name, loop_count, ...) \
+    MRF_IMPL_FUZZ_TEST_DOMAIN_CT(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), test_name, loop_count, __VA_ARGS__)
 
-#define MRF_FUZZ_TEST_DOMAIN_RT(name, loop_count, ...) \
-    MRF_IMPL_FUZZ_TEST_DOMAIN_RT(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), name, loop_count, __VA_ARGS__)
+#define MRF_FUZZ_TEST_DOMAIN_RT(test_name, loop_count, ...) \
+    MRF_IMPL_FUZZ_TEST_DOMAIN_RT(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), test_name, DOCTEST_EMPTY, loop_count, __VA_ARGS__)
 
-#define MRF_FUZZ_TEST_DOMAIN(name, loop_count, ...) MRF_FUZZ_TEST_DOMAIN_RT(name, loop_count, __VA_ARGS__)
+#define MRF_FUZZ_TEST_DOMAIN_SEEDED_RT(test_name, predefined_seed, loop_count, ...) \
+    MRF_IMPL_FUZZ_TEST_DOMAIN_RT(DOCTEST_ANONYMOUS(DOCTEST_ANON_FUNC_), test_name, predefined_seed, loop_count, __VA_ARGS__)
+
+#define MRF_FUZZ_TEST_DOMAIN(test_name, loop_count, ...) MRF_FUZZ_TEST_DOMAIN_RT(test_name, loop_count, __VA_ARGS__)
+#define MRF_FUZZ_TEST_DOMAIN_SEEDED(test_name, predefined_seed, loop_count, ...) \
+    MRF_FUZZ_TEST_DOMAIN_SEEDED_RT(test_name, predefined_seed, loop_count, __VA_ARGS__)
+
 #define MRF_FUZZ_TEST_CASE(...) (__VA_ARGS__)
