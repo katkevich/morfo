@@ -25,6 +25,7 @@ struct collect {
 inline constexpr cpo::into into{};
 inline constexpr cpo::collect collect{};
 
+namespace impl {
 /* Collections smaller than 32 are being sorted using insertion sort */
 static constexpr std::ptrdiff_t insertion_sort_threshold = 32;
 
@@ -173,14 +174,15 @@ static constexpr void introsort(Rng& rng, std::ptrdiff_t first, std::ptrdiff_t l
         introsort_loop(rng, first, last, max_depth, comp, proj);
     }
 }
+} // namespace impl
 
 template <typename Rng, typename Compare, typename Proj>
 static constexpr void introsort(Rng& rng, Compare comp, Proj proj) {
-    introsort(rng, 0, rng.size(), comp, proj);
+    impl::introsort(rng, 0, rng.size(), comp, proj);
 }
 
 template <typename Rng, typename Compare, typename Proj>
 static constexpr void insertsort(Rng& rng, Compare comp, Proj proj) {
-    insertsort(rng, 0, rng.size(), comp, proj);
+    impl::insertsort(rng, 0, rng.size(), comp, proj);
 }
 } // namespace mrf

@@ -3,18 +3,18 @@
 
 namespace mrf {
 template <typename T>
-struct original {
+struct original_type {
     using type = typename std::remove_cvref_t<T>::original_type;
 };
 template <typename T>
-using original_t = typename original<T>::type;
+using original_type_t = typename original_type<T>::type;
 
 template <typename T>
-struct storage {
+struct storage_type {
     using type = typename std::remove_cvref_t<T>::storage_type;
 };
 template <typename T>
-using storage_t = typename storage<T>::type;
+using storage_type_t = typename storage_type<T>::type;
 
 template <template <typename...> typename TTmpl, typename T>
 struct is_specialization_of : std::false_type {};
