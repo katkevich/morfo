@@ -173,4 +173,14 @@ static constexpr void introsort(Rng& rng, std::ptrdiff_t first, std::ptrdiff_t l
         introsort_loop(rng, first, last, max_depth, comp, proj);
     }
 }
+
+template <typename Rng, typename Compare, typename Proj>
+static constexpr void introsort(Rng& rng, Compare comp, Proj proj) {
+    introsort(rng, 0, rng.size(), comp, proj);
+}
+
+template <typename Rng, typename Compare, typename Proj>
+static constexpr void insertsort(Rng& rng, Compare comp, Proj proj) {
+    insertsort(rng, 0, rng.size(), comp, proj);
+}
 } // namespace mrf

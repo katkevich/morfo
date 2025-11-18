@@ -3,6 +3,7 @@
 #include "morfo/bucket.hpp"
 #include "morfo/mixin.hpp"
 #include "morfo/algorithm.hpp"
+#include "morfo/projection.hpp"
 #include "morfo/misc/static_vector.hpp"
 #include "morfo/misc/static_map.hpp"
 #include "morfo/misc/unordered_map.hpp"

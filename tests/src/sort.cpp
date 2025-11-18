@@ -28,17 +28,7 @@ MRF_FUZZ_TEST_CASE(std::vector<Person> persons) {
         mrf_persons.push_back(person);
     }
 
-    struct Proj {
-        constexpr auto operator()(mrf::vector<Person>& vec, std::size_t idx) {
-            return vec[idx].id;
-        }
-
-        constexpr auto operator()(mrf::vector<Person>::reference& ref) {
-            return ref.id;
-        }
-    };
-
-    mrf::introsort(mrf_persons, 0, std::ssize(mrf_persons), std::less{}, Proj{});
+    mrf::introsort(mrf_persons, std::less{}, mrf::proj::member<^^Person::id>);
     std::ranges::sort(persons, std::less{}, &Person::id);
 
     std::vector<Person> actual_sorted;
@@ -63,17 +53,7 @@ MRF_FUZZ_TEST_CASE(std::vector<Person> persons) {
         mrf_persons.push_back(person);
     }
 
-    struct Proj {
-        constexpr auto operator()(mrf::vector<Person>& vec, std::size_t idx) {
-            return vec[idx].id;
-        }
-
-        constexpr auto operator()(mrf::vector<Person>::reference& ref) {
-            return ref.id;
-        }
-    };
-
-    mrf::insertsort(mrf_persons, 0, std::ssize(persons), std::less{}, Proj{});
+    mrf::insertsort(mrf_persons, std::less{}, mrf::proj::member<^^Person::id>);
     std::ranges::sort(persons, std::less{}, &Person::id);
 
     std::vector<Person> actual_sorted;

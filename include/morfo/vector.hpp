@@ -7,6 +7,10 @@
 #include <cassert>
 
 namespace mrf {
+namespace proj {
+template <auto MemberMetaInfo>
+struct member_t;
+}
 
 template <typename T>
 class vector : public mrf::mixin::collect_mixin {
@@ -14,6 +18,9 @@ class vector : public mrf::mixin::collect_mixin {
     static_assert(members_count > 0, "type T should have at least one nonstatic data member");
     static_assert(!std::is_const_v<T>, "const T ain't supported");
     static_assert(!std::is_reference_v<T>, "reference T ain't supported");
+
+    template <auto MemberMetaInfo>
+    friend struct proj::member_t;
 
     /* These will be defined using reflection */
 public:
