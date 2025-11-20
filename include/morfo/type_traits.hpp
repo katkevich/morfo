@@ -9,8 +9,24 @@ struct original_type {
 template <typename T>
 using original_type_t = typename original_type<T>::type;
 
+
 template <typename T>
+struct vector_type {
+    using type = typename std::remove_cvref_t<T>::vector_type;
+};
+template <typename T>
+using vector_type_t = typename vector_type<T>::type;
+
+/**
+ * `Storage` here means a class which contains nonstatic data members for `T`.
+ * This is not necessarily `T` itself - it could be a base class of `T`
+ */
+template <typename T, typename = void>
 struct storage_type {
+    using type = T;
+};
+template <typename T>
+struct storage_type<T, std::void_t<typename std::remove_cvref_t<T>::storage_type>> {
     using type = typename std::remove_cvref_t<T>::storage_type;
 };
 template <typename T>

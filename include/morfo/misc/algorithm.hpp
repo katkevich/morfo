@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <meta>
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -52,6 +53,11 @@ consteval auto nsdm_of() {
         constexpr auto nsdm = define_static_array(nonstatic_data_members_of(Type, std::meta::access_context::unchecked()));
         return std::array{ nsdm[Is]... };
     }(std::make_index_sequence<nsdm_size_of(Type)>());
+}
+
+template <typename TRng, typename TValue>
+constexpr auto index_of(TRng&& rng, const TValue& value) {
+    return std::ranges::find(rng, value) - std::ranges::begin(rng);
 }
 
 template <auto Array, typename Fn>

@@ -4,16 +4,174 @@
 namespace mrf::test::mixin {
 struct Obj {
     int id = 0;
-    std::string_view name;
+    std::string name;
 };
 
-TEST_CASE("mrf::vector reference copy assign from another reference") {
+struct OtherObj {
+    int i = 0;
+    std::string n;
+};
+
+MRF_TEST_CASE_CTRT("mrf::vector copy reference into original value") {
     mrf::vector<Obj> objs;
-    objs.push_back(Obj{ 5, "5" });
-    objs.push_back(Obj{ 2, "2" });
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    mrf::vector<Obj>::reference obj_0 = objs[0];
+    mrf::vector<Obj>::reference obj_1 = objs[1];
+
+    {
+        Obj o0 = obj_0.into();
+        MRF_REQUIRE_EQ(obj_0.name, o0.name);
+    }
+    {
+        Obj o0 = std::move(obj_0).into();
+        MRF_REQUIRE_EQ(obj_0.name, o0.name);
+    }
+}
+
+MRF_TEST_CASE_CTRT("mrf::vector steal reference into original value") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    mrf::vector<Obj>::reference obj_0 = objs[0];
+    mrf::vector<Obj>::reference obj_1 = objs[1];
+
+    {
+        Obj o0 = obj_0.steal_into();
+        MRF_REQUIRE_EQ(o0.name, "1111111111111111111111111");
+        MRF_REQUIRE(obj_0.name.empty());
+    }
+    {
+        Obj o1 = std::move(obj_1).steal_into();
+        MRF_REQUIRE_EQ(o1.name, "2222222222222222222222222");
+        MRF_REQUIRE(obj_1.name.empty());
+    }
+}
+
+MRF_TEST_CASE_CTRT("mrf::vector forward reference into original value") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    mrf::vector<Obj>::reference obj_0 = objs[0];
+    mrf::vector<Obj>::reference obj_1 = objs[1];
+
+    {
+        Obj o0 = obj_0.forward_into();
+        MRF_REQUIRE_EQ(obj_0.name, o0.name);
+    }
+    {
+        Obj o1 = std::move(obj_1).forward_into();
+        MRF_REQUIRE_EQ(o1.name, "2222222222222222222222222");
+        MRF_REQUIRE(obj_1.name.empty());
+    }
+}
+
+MRF_TEST_CASE_CTRT("mrf::vector copy reference into value of a different type but with the same layout") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    mrf::vector<Obj>::reference obj_0 = objs[0];
+    mrf::vector<Obj>::reference obj_1 = objs[1];
+
+    {
+        OtherObj o0 = obj_0.into<OtherObj>();
+        MRF_REQUIRE_EQ(obj_0.name, o0.n);
+    }
+    {
+        OtherObj o0 = std::move(obj_0).into<OtherObj>();
+        MRF_REQUIRE_EQ(obj_0.name, o0.n);
+    }
+}
+
+MRF_TEST_CASE_CTRT("mrf::vector steal reference into value of a different type but with the same layout") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    mrf::vector<Obj>::reference obj_0 = objs[0];
+    mrf::vector<Obj>::reference obj_1 = objs[1];
+
+    {
+        OtherObj o0 = obj_0.steal_into<OtherObj>();
+        MRF_REQUIRE_EQ(o0.n, "1111111111111111111111111");
+        MRF_REQUIRE(obj_0.name.empty());
+    }
+    {
+        OtherObj o1 = std::move(obj_1).steal_into<OtherObj>();
+        MRF_REQUIRE_EQ(o1.n, "2222222222222222222222222");
+        MRF_REQUIRE(obj_1.name.empty());
+    }
+}
+
+MRF_TEST_CASE_CTRT("mrf::vector forward reference into value of a different type but with the same layout") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    mrf::vector<Obj>::reference obj_0 = objs[0];
+    mrf::vector<Obj>::reference obj_1 = objs[1];
+
+    {
+        OtherObj o0 = obj_0.forward_into<OtherObj>();
+        MRF_REQUIRE_EQ(obj_0.name, o0.n);
+    }
+    {
+        OtherObj o1 = std::move(obj_1).forward_into<OtherObj>();
+        MRF_REQUIRE_EQ(o1.n, "2222222222222222222222222");
+        MRF_REQUIRE(obj_1.name.empty());
+    }
+}
+
+
+MRF_TEST_CASE_CTRT("mrf::vector reference steal from another reference") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    objs[0].steal_from(objs[1]);
+
+    MRF_REQUIRE(objs[1].name.empty());
+    MRF_REQUIRE_EQ(objs[0].name, "2222222222222222222222222");
+}
+
+MRF_TEST_CASE_CTRT("mrf::vector reference copy assign from another reference") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
 
     objs[0].from(objs[1]);
+    MRF_REQUIRE_EQ(objs[0], objs[1]);
 
+    objs[0].from(std::move(objs[1]));
     MRF_REQUIRE_EQ(objs[0], objs[1]);
 }
+
+MRF_TEST_CASE_CTRT("mrf::vector reference steal from another reference") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    objs[0].steal_from(objs[1]);
+
+    MRF_REQUIRE(objs[1].name.empty());
+    MRF_REQUIRE_EQ(objs[0].name, "2222222222222222222222222");
+}
+
+// MRF_TEST_CASE_CTRT("mrf::vector reference forward from another reference") {
+//     mrf::vector<Obj> objs;
+//     objs.push_back(Obj{ 1, "1111111111111111111111111" });
+//     objs.push_back(Obj{ 2, "2222222222222222222222222" });
+//     objs.push_back(Obj{ 3, "3333333333333333333333333" });
+
+//     objs[0].forward_from(objs[1]);
+//     MRF_REQUIRE_EQ(objs[0].name, objs[1].name);
+
+//     objs[1].forward_from(std::move(objs[2]));
+//     MRF_REQUIRE_EQ(objs[1].name, "2222222222222222222222222");
+//     MRF_REQUIRE(objs[2].name.empty());
+// }
 } // namespace mrf::test::mixin

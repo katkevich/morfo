@@ -1,6 +1,7 @@
 #pragma once
 #include "morfo/bucket.hpp"
 #include "morfo/misc/algorithm.hpp"
+#include "morfo/vector.hpp"
 #include <algorithm>
 
 namespace mrf::proj {
@@ -26,7 +27,37 @@ struct member_t {
     }
 };
 
+template <auto Id>
+    requires cpt::bucket_id<Id>
+struct bucket_t {
+    template <typename T>
+    constexpr auto operator()(mrf::vector<T>& morfo_container, std::size_t idx) {
+        auto& bucket = morfo_container.template bucket_mut<Id>()[idx];
+        auto& [... members] = bucket;
+
+        return mrf::bucket_reference<T, Id>{ members... };
+    }
+
+    template <typename TRef>
+    constexpr auto operator()(TRef& ref) {
+        using original_type = typename TRef::original_type;
+        using bucket_type = mrf::bucket<original_type, Id>;
+        using bucket_reference = mrf::bucket_reference<original_type, Id>;
+
+        constexpr auto bucket_nsdm = misc::nsdm_of<^^typename bucket_type::storage_type>();
+
+        return misc::spread<bucket_nsdm>([&]<auto... BucketMembers>() {
+            constexpr auto ref_nsdm = misc::nsdm_of<^^typename TRef::storage_type>();
+            return bucket_reference{ ref.[:*std::ranges::find(ref_nsdm, identifier_of(BucketMembers), &std::meta::identifier_of):]... };
+        });
+    }
+};
+
 template <auto MetaInfo>
     requires cpt::member_meta<MetaInfo>
-constexpr member_t<MetaInfo> member{};
+static constexpr member_t<MetaInfo> member{};
+
+template <auto Id>
+    requires cpt::bucket_id<Id>
+static constexpr bucket_t<Id> bucket{};
 } // namespace mrf::proj

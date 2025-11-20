@@ -13,6 +13,20 @@ struct into {
     }
 };
 
+struct from {
+    template <typename T>
+    static constexpr auto operator()(const T& value) {
+        auto& [... members] = value;
+        return mrf::const_reference<T>{ members... };
+    }
+
+    template <typename T>
+    static constexpr auto operator()(T& value) {
+        auto& [... members] = value;
+        return mrf::reference<T>{ members... };
+    }
+};
+
 struct collect {
     /* `mrf::vector<T>` */
     template <template <typename...> typename TTargetContainer = std::vector, typename TMrfContainer>
@@ -23,6 +37,7 @@ struct collect {
 } // namespace cpo
 
 inline constexpr cpo::into into{};
+inline constexpr cpo::from from{};
 inline constexpr cpo::collect collect{};
 
 namespace impl {
@@ -121,7 +136,7 @@ static constexpr void insertsort(Rng& rng, std::ptrdiff_t first, std::ptrdiff_t 
                 --j;
             } while (j >= first && std::invoke(comp, item_projected, proj(rng, j)));
 
-            rng[j + 1].steal_from(std::move(item_as_tuple));
+            rng[j + 1].steal_from(item_as_tuple);
         }
     }
 }
@@ -133,9 +148,6 @@ template <typename Rng, typename Compare, typename Proj>
 static constexpr void
 introsort_loop(Rng& rng, std::ptrdiff_t first, std::ptrdiff_t last, std::ptrdiff_t depth_limit, Compare comp, Proj proj) {
     while (true) {
-        if (last - first <= 1) {
-            return;
-        }
         /* Small collection is effectively sorted with insertion sort. */
         if (last - first <= insertion_sort_threshold) {
             insertsort(rng, first, last, comp, proj);
