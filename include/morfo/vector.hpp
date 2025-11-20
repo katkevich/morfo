@@ -214,7 +214,10 @@ public:
     }
 
     template <auto Id>
-    struct bucket_type : bucket_storage_type<Id>, mrf::mixin::cmp_mixin {
+    struct bucket_type : bucket_storage_type<Id>, //
+                         mrf::mixin::into_tuple_mixin,
+                         mrf::mixin::into_mixin,
+                         mrf::mixin::cmp_mixin {
         using original_type = T;
         using vector_type = mrf::vector<T>;
         using storage_type = bucket_storage_type<Id>;
@@ -227,19 +230,9 @@ public:
     }
 
     template <auto Id>
-    struct bucket_reference : bucket_reference_storage_type<Id>,
-                              mrf::mixin::into_mixin<bucket_type<Id>>,
-                              mrf::mixin::from_mixin<bucket_type<Id>>,
-                              mrf::mixin::cmp_mixin {
-        using original_type = T;
-        using value_type = bucket_type<Id>;
-        using vector_type = mrf::vector<T>;
-        using storage_type = bucket_reference_storage_type<Id>;
-    };
-
-    template <auto Id>
     struct bucket_const_reference : bucket_const_reference_storage_type<Id>,
-                                    mrf::mixin::into_mixin<bucket_type<Id>>,
+                                    mrf::mixin::into_tuple_mixin,
+                                    mrf::mixin::into_with_default_mixin<bucket_type<Id>>,
                                     mrf::mixin::cmp_mixin {
         using original_type = T;
         using value_type = bucket_type<Id>;
@@ -247,18 +240,39 @@ public:
         using storage_type = bucket_const_reference_storage_type<Id>;
     };
 
-    struct reference : reference_storage_type, mrf::mixin::into_mixin<T>, mrf::mixin::from_mixin<T>, mrf::mixin::cmp_mixin {
+    template <auto Id>
+    struct bucket_reference : bucket_reference_storage_type<Id>,
+                              mrf::mixin::into_tuple_mixin,
+                              mrf::mixin::into_with_default_mixin<bucket_type<Id>>,
+                              mrf::mixin::from_mixin<bucket_type<Id>>,
+                              mrf::mixin::cmp_mixin,
+                              mrf::mixin::aggregate_implicit_convert_into_mixin<bucket_const_reference<Id>> {
         using original_type = T;
-        using value_type = T;
+        using value_type = bucket_type<Id>;
         using vector_type = mrf::vector<T>;
-        using storage_type = reference_storage_type;
+        using storage_type = bucket_reference_storage_type<Id>;
     };
 
-    struct const_reference : const_reference_storage_type, mrf::mixin::into_mixin<T>, mrf::mixin::cmp_mixin {
+    struct const_reference : const_reference_storage_type,
+                             mrf::mixin::into_tuple_mixin,
+                             mrf::mixin::into_with_default_mixin<T>,
+                             mrf::mixin::cmp_mixin {
         using original_type = T;
         using value_type = T;
         using vector_type = mrf::vector<T>;
         using storage_type = const_reference_storage_type;
+    };
+
+    struct reference : reference_storage_type,
+                       mrf::mixin::into_tuple_mixin,
+                       mrf::mixin::into_with_default_mixin<T>,
+                       mrf::mixin::from_mixin<T>,
+                       mrf::mixin::cmp_mixin,
+                       mrf::mixin::aggregate_implicit_convert_into_mixin<const_reference> {
+        using original_type = T;
+        using value_type = T;
+        using vector_type = mrf::vector<T>;
+        using storage_type = reference_storage_type;
     };
 
     struct pointer : reference_storage_type {
@@ -467,7 +481,7 @@ public:
      */
     template <auto Id>
         requires cpt::bucket_id<Id>
-    constexpr auto& bucket_mut() {
+    constexpr auto& bucket() {
         return bucket_impl<Id>();
     }
 

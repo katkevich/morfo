@@ -32,7 +32,7 @@ template <auto Id>
 struct bucket_t {
     template <typename T>
     constexpr auto operator()(mrf::vector<T>& morfo_container, std::size_t idx) {
-        auto& bucket = morfo_container.template bucket_mut<Id>()[idx];
+        auto& bucket = morfo_container.template bucket<Id>()[idx];
         auto& [... members] = bucket;
 
         return mrf::bucket_reference<T, Id>{ members... };

@@ -5,8 +5,30 @@
 
 namespace mrf::mixin {
 
-template <typename TValue>
 struct into_mixin {
+    /* Copy the content of 'morfo' into 'TInto' type (original type by default) */
+    template <typename TInto, typename TSelf>
+    constexpr auto into(this const TSelf& self) {
+        return self.template forward_into<TInto>();
+    }
+
+    /* "Steal" (move from lvalue/rvalue) the content of 'morfo' reference into 'TInto' type (original type by default) */
+    template <typename TInto, typename TSelf>
+    constexpr auto steal_into(this TSelf&& self) {
+        return std::move(self).template forward_into<TInto>();
+    }
+
+    /* Copy (from lvalue) or "steal" (move from rvalue) the content of 'morfo' reference into 'TInto' type (original type by default) */
+    template <typename TInto, typename TSelf>
+    constexpr auto forward_into(this TSelf&& self) {
+        return misc::spread<misc::nsdm_of<^^mrf::storage_type_t<TSelf>>()>([&self]<std::meta::info... Members> { //
+            return TInto{ std::forward_like<TSelf>(self.[:Members:])... };
+        });
+    }
+};
+
+template <typename TValue>
+struct into_with_default_mixin {
     /* Copy the content of 'morfo' into 'TInto' type (original type by default) */
     template <typename TInto = TValue, typename TSelf>
     constexpr auto into(this const TSelf& self) {
@@ -25,6 +47,13 @@ struct into_mixin {
         return misc::spread<misc::nsdm_of<^^mrf::storage_type_t<TSelf>>()>([&self]<std::meta::info... Members> { //
             return TInto{ std::forward_like<TSelf>(self.[:Members:])... };
         });
+    }
+};
+
+struct into_tuple_mixin {
+    template <typename TSelf>
+    constexpr auto into_tuple(this TSelf&& self) {
+        return self.forward_into_tuple();
     }
 
     /* "Steal" (move from lvalue/rvalue) the content of 'morfo' reference into std::tuple */
@@ -148,6 +177,15 @@ struct cmp_mixin {
             }
         }
         return true;
+    }
+};
+
+template <typename TInto>
+struct aggregate_implicit_convert_into_mixin {
+    template <typename TSelf>
+    constexpr operator TInto(this TSelf&& self) {
+        auto& [... members] = self;
+        return TInto{ std::forward_like<TSelf>(members)... };
     }
 };
 } // namespace mrf::mixin

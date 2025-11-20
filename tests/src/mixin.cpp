@@ -161,17 +161,24 @@ MRF_TEST_CASE_CTRT("mrf::vector reference steal from another reference") {
     MRF_REQUIRE_EQ(objs[0].name, "2222222222222222222222222");
 }
 
-// MRF_TEST_CASE_CTRT("mrf::vector reference forward from another reference") {
-//     mrf::vector<Obj> objs;
-//     objs.push_back(Obj{ 1, "1111111111111111111111111" });
-//     objs.push_back(Obj{ 2, "2222222222222222222222222" });
-//     objs.push_back(Obj{ 3, "3333333333333333333333333" });
+MRF_TEST_CASE_CTRT("mrf::vector non-const reference is implicitly convertible to const reference") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
 
-//     objs[0].forward_from(objs[1]);
-//     MRF_REQUIRE_EQ(objs[0].name, objs[1].name);
+    mrf::vector<Obj>::reference nonconst_ref = objs[0];
+    mrf::vector<Obj>::const_reference const_ref = nonconst_ref;
+}
 
-//     objs[1].forward_from(std::move(objs[2]));
-//     MRF_REQUIRE_EQ(objs[1].name, "2222222222222222222222222");
-//     MRF_REQUIRE(objs[2].name.empty());
-// }
+MRF_TEST_CASE_CTRT("mrf::vector non-const bucket reference is implicitly convertible to const bucket reference") {
+    mrf::vector<Obj> objs;
+    objs.push_back(Obj{ 1, "1111111111111111111111111" });
+    objs.push_back(Obj{ 2, "2222222222222222222222222" });
+
+    std::vector<mrf::bucket<Obj, ^^Obj::name>>& name_buckets = objs.bucket<^^Obj::name>();
+
+    using bucket_ref = mrf::bucket_reference<Obj, ^^Obj::name>;
+    // bucket_ref b0 = name_buckets[0].into<bucket_ref>();
+}
+
 } // namespace mrf::test::mixin
