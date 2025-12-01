@@ -52,4 +52,11 @@ struct is_specialization_of<TTmpl, TTmpl<TArgs...>&&> : std::true_type {};
 
 template <template <typename...> typename TTmpl, typename T>
 static constexpr bool is_specialization_of_v = is_specialization_of<TTmpl, T>::value;
+
+
+template <typename TupleLike, std::size_t N>
+concept tuple_like_relaxed = []<std::size_t... Is>(std::index_sequence<Is...>) {
+    using std::get;
+    return requires(TupleLike t) { (get<Is>(t), ...); };
+}(std::make_index_sequence<N>{});
 } // namespace mrf

@@ -214,7 +214,8 @@ public:
     }
 
     template <auto Id>
-    struct bucket_type : bucket_storage_type<Id>, //
+    struct bucket_type : bucket_storage_type<Id>,
+                         mrf::mixin::make_mixin<bucket_type<Id>>,
                          mrf::mixin::into_tuple_mixin,
                          mrf::mixin::into_mixin,
                          mrf::mixin::cmp_mixin {
@@ -231,6 +232,7 @@ public:
 
     template <auto Id>
     struct bucket_const_reference : bucket_const_reference_storage_type<Id>,
+                                    mrf::mixin::make_mixin<bucket_const_reference<Id>>,
                                     mrf::mixin::into_tuple_mixin,
                                     mrf::mixin::into_with_default_mixin<bucket_type<Id>>,
                                     mrf::mixin::cmp_mixin {
@@ -242,6 +244,7 @@ public:
 
     template <auto Id>
     struct bucket_reference : bucket_reference_storage_type<Id>,
+                              mrf::mixin::make_mixin<bucket_reference<Id>>,
                               mrf::mixin::into_tuple_mixin,
                               mrf::mixin::into_with_default_mixin<bucket_type<Id>>,
                               mrf::mixin::from_mixin<bucket_type<Id>>,
@@ -254,6 +257,7 @@ public:
     };
 
     struct const_reference : const_reference_storage_type,
+                             mrf::mixin::make_mixin<const_reference>,
                              mrf::mixin::into_tuple_mixin,
                              mrf::mixin::into_with_default_mixin<T>,
                              mrf::mixin::cmp_mixin {
@@ -264,6 +268,7 @@ public:
     };
 
     struct reference : reference_storage_type,
+                       mrf::mixin::make_mixin<reference>,
                        mrf::mixin::into_tuple_mixin,
                        mrf::mixin::into_with_default_mixin<T>,
                        mrf::mixin::from_mixin<T>,
@@ -477,7 +482,7 @@ public:
 
     /**
      * Be careful with changing the size of a mutable bucket!
-     * Using mrf::vector while one of the buckets have different size is UB!
+     * Using mrf::vector while buckets have different size is UB!
      */
     template <auto Id>
         requires cpt::bucket_id<Id>
@@ -608,8 +613,9 @@ public:
     }
 
     constexpr void pop_back() {
-        misc::static_vector_foreach<collect_storage_stats()>(
-            [this]<storage_member_stat StorageMemberStat> { storage.[:StorageMemberStat.storage_member:].pop_back(); });
+        misc::static_vector_foreach<collect_storage_stats()>([this]<storage_member_stat StorageMemberStat> { //
+            storage.[:StorageMemberStat.storage_member:].pop_back();
+        });
     }
 
     constexpr void resize(size_type new_size)
@@ -701,6 +707,9 @@ using bucket = typename mrf::vector<T>::template bucket_type<Id>;
 
 template <typename T, auto Id>
 using bucket_reference = typename mrf::vector<T>::template bucket_reference<Id>;
+
+template <typename T, auto Id>
+using bucket_const_reference = typename mrf::vector<T>::template bucket_const_reference<Id>;
 
 template <typename T>
 using reference = typename mrf::vector<T>::reference;

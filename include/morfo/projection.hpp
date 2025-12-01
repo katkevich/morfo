@@ -4,7 +4,8 @@
 #include "morfo/vector.hpp"
 #include <algorithm>
 
-namespace mrf::proj {
+namespace mrf {
+namespace proj {
 template <auto MetaInfo>
     requires cpt::member_meta<MetaInfo>
 struct member_t {
@@ -53,11 +54,92 @@ struct bucket_t {
     }
 };
 
+struct into_t {
+    /* `mrf::vector<T>::reference/mrf::vector<T>::const_reference` */
+    template <typename TMrfReference>
+    static constexpr auto operator()(const TMrfReference& ref) {
+        return ref.into();
+    }
+};
+
+struct from_t {
+    template <typename T>
+    static constexpr auto operator()(const T& value) {
+        auto& [... members] = value;
+        return mrf::const_reference<T>{ members... };
+    }
+
+    template <typename T>
+    static constexpr auto operator()(T& value) {
+        auto& [... members] = value;
+        return mrf::reference<T>{ members... };
+    }
+};
+
+struct collect_t {
+    /* `mrf::vector<T>` */
+    template <template <typename...> typename TTargetContainer = std::vector, typename TMrfContainer>
+    static constexpr auto operator()(TMrfContainer&& container) {
+        return std::forward<TMrfContainer>(container).template collect<TTargetContainer>();
+    }
+};
+
+/**
+ * Functor which converts Morfo references back into its original type.
+ * Usage example:
+ *
+ * mrf::vector<Person> morfo;
+ * std::vector<Person> original;
+ * std::ranges::transform(morfo, std::back_inserter(original), mrf::into);
+ */
+inline constexpr into_t into{};
+
+/**
+ * Functor which converts original type into Morfo reference.
+ * Usage example:
+ *
+ * mrf::vector<Person> morfo;
+ * std::vector<Person> original;
+ * std::ranges::transform(original, std::back_inserter(morfo), mrf::from);
+ */
+inline constexpr from_t from{};
+
+/**
+ * Functor which convert Morfo collection into desired collection with 'original type' elements.
+ * Usage example:
+ *
+ * mrf::vector<Person> morfo;
+ * std::vector<Person> original = mrf::collect(morfo); // same as morfo.collect();
+ */
+inline constexpr collect_t collect{};
+
+/**
+ * Functor (projection) which given a reflection of an original member returns a reference to a member of a
+ * mrf::referece<...>.
+ * Usage example:
+ *
+ * mrf::vector<Person> mrf_persons;
+ * mrf::sort(mrf_persons, std::less{}, mrf::proj::member<^^Person::id>); // sort mrf_persons by 'id'
+ */
 template <auto MetaInfo>
     requires cpt::member_meta<MetaInfo>
-static constexpr member_t<MetaInfo> member{};
+inline constexpr member_t<MetaInfo> member{};
 
+/**
+ * Functor (projection) which given a bucket ID (tag or member reflection) returns a reference to a corresponding
+ * bucket (corresponding bucket should exist).
+ * Usage example:
+ *
+ * mrf::vector<Person> mrf_persons;
+ * mrf::sort(mrf_persons, std::less{}, mrf::proj::bucket<mrf::hot>); // sort by 'mrf::bucket_reference<T, mrf::hot>' bucket
+ * mrf::sort(mrf_persons, std::less{}, mrf::proj::bucket<^^Person::id>); // sort by mrf::bucket_reference<T, ^^Person::id> bucket
+ */
 template <auto Id>
     requires cpt::bucket_id<Id>
-static constexpr bucket_t<Id> bucket{};
-} // namespace mrf::proj
+inline constexpr bucket_t<Id> bucket{};
+} // namespace proj
+
+inline constexpr proj::into_t into{};
+inline constexpr proj::from_t from{};
+inline constexpr proj::collect_t collect{};
+} // namespace mrf

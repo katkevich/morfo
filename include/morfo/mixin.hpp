@@ -86,13 +86,14 @@ struct from_mixin {
     }
 
     template <typename TSelf, typename TTuple>
-        requires mrf::is_specialization_of_v<std::tuple, TTuple>
+        requires mrf::tuple_like_relaxed<TTuple, misc::nsdm_size_of(^^mrf::storage_type_t<TSelf>)>
     constexpr void from(this TSelf&& self, TTuple&& tuple) {
         constexpr auto nsdm = misc::nsdm_of<^^mrf::storage_type_t<TSelf>>();
         constexpr auto Is = misc::make_index_sequence<nsdm.size()>();
 
+        using std::get;
         template for (constexpr auto I : Is) {
-            self.[:nsdm[I]:] = std::get<I>(std::forward<TTuple>(tuple));
+            self.[:nsdm[I]:] = get<I>(std::forward<TTuple>(tuple));
         }
     }
 
@@ -117,13 +118,14 @@ struct from_mixin {
     }
 
     template <typename TSelf, typename TTuple>
-        requires mrf::is_specialization_of_v<std::tuple, TTuple>
+        requires mrf::tuple_like_relaxed<TTuple, misc::nsdm_size_of(^^mrf::storage_type_t<TSelf>)>
     constexpr void steal_from(this TSelf&& self, TTuple&& tuple) {
         constexpr auto nsdm = misc::nsdm_of<^^mrf::storage_type_t<TSelf>>();
         constexpr auto Is = misc::make_index_sequence<nsdm.size()>();
 
+        using std::get;
         template for (constexpr auto I : Is) {
-            self.[:nsdm[I]:] = std::move(std::get<I>(tuple));
+            self.[:nsdm[I]:] = std::move(get<I>(tuple));
         }
     }
 
@@ -133,6 +135,18 @@ struct from_mixin {
         template for (constexpr auto member : misc::nsdm_of(^^mrf::storage_type_t<TSelf>)) {
             self.[:member:] = std::move(other.[:member:]);
         }
+    }
+};
+
+template <typename TSelf>
+struct make_mixin {
+    template <typename TValue>
+    static constexpr TSelf make(TValue&& value) {
+        constexpr auto nsdm = misc::nsdm_of<^^mrf::storage_type_t<TValue>>();
+
+        return misc::spread<nsdm>([&]<auto... Members> { //
+            return TSelf{ std::forward<TValue>(value).[:Members:]... };
+        });
     }
 };
 
