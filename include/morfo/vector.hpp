@@ -230,6 +230,9 @@ public:
         define_reference_type(^^const_reference_storage_type, true);
     }
 
+    static constexpr auto member_stats_s = collect_member_stats();
+    static constexpr auto storage_stats_s = collect_storage_stats();
+
     template <auto Id>
     struct bucket_const_reference : bucket_const_reference_storage_type<Id>,
                                     mrf::mixin::make_mixin<bucket_const_reference<Id>>,
@@ -340,13 +343,13 @@ private:
             , idx(that.idx) {}
 
         constexpr reference operator*() const noexcept {
-            return misc::spread<collect_member_stats()>([this]<member_stat... Stats> {
+            return misc::spread<member_stats_s>([this]<member_stat... Stats> {
                 return reference{ container->storage.[:Stats.storage_member:][idx].[:Stats.bucket_member:]... };
             });
         }
 
         constexpr pointer operator->() const noexcept {
-            return misc::spread<collect_member_stats()>([this]<member_stat... Stats> {
+            return misc::spread<member_stats_s>([this]<member_stat... Stats> {
                 return pointer{ container->storage.[:Stats.storage_member:][idx].[:Stats.bucket_member:]... };
             });
         }
@@ -595,25 +598,25 @@ public:
     }
 
     constexpr void reserve(size_type new_cap) {
-        misc::static_vector_foreach<collect_storage_stats()>([new_cap, this]<storage_member_stat StorageMemberStat> {
+        misc::static_vector_foreach<storage_stats_s>([new_cap, this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].reserve(new_cap);
         });
     }
 
     constexpr void shrink_to_fit() {
-        misc::static_vector_foreach<collect_storage_stats()>([this]<storage_member_stat StorageMemberStat> {
+        misc::static_vector_foreach<storage_stats_s>([this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].shrink_to_fit();
         });
     }
 
     constexpr void clear() {
-        misc::static_vector_foreach<collect_storage_stats()>([this]<storage_member_stat StorageMemberStat> { //
+        misc::static_vector_foreach<storage_stats_s>([this]<storage_member_stat StorageMemberStat> { //
             storage.[:StorageMemberStat.storage_member:].clear();
         });
     }
 
     constexpr void pop_back() {
-        misc::static_vector_foreach<collect_storage_stats()>([this]<storage_member_stat StorageMemberStat> { //
+        misc::static_vector_foreach<storage_stats_s>([this]<storage_member_stat StorageMemberStat> { //
             storage.[:StorageMemberStat.storage_member:].pop_back();
         });
     }
@@ -625,7 +628,7 @@ public:
     }
 
     constexpr void resize(size_type new_size, const T& default_val) {
-        misc::static_vector_foreach<collect_storage_stats()>([&, this]<storage_member_stat StorageMemberStat> {
+        misc::static_vector_foreach<storage_stats_s>([&, this]<storage_member_stat StorageMemberStat> {
             misc::static_vector_spread<StorageMemberStat.bucket_members>([&, this]<bucket_member_stat... BucketMemberStats> {
                 storage.[:StorageMemberStat.storage_member:].resize(new_size, { default_val.[:BucketMemberStats.item_member:]... });
             });
@@ -633,7 +636,7 @@ public:
     }
 
     constexpr void swap(vector& that) {
-        misc::static_vector_foreach<collect_storage_stats()>([&that, this]<storage_member_stat StorageMemberStat> {
+        misc::static_vector_foreach<storage_stats_s>([&that, this]<storage_member_stat StorageMemberStat> {
             storage.[:StorageMemberStat.storage_member:].swap(that.storage.[:StorageMemberStat.storage_member:]);
         });
     }
@@ -641,7 +644,7 @@ public:
 private:
     template <typename U>
     constexpr void push_back_impl(U&& item) {
-        misc::static_vector_foreach<collect_storage_stats()>([&, this]<storage_member_stat StorageMemberStat> {
+        misc::static_vector_foreach<storage_stats_s>([&, this]<storage_member_stat StorageMemberStat> {
             misc::static_vector_spread<StorageMemberStat.bucket_members>([&, this]<bucket_member_stat... BucketMemberStats> {
                 storage.[:StorageMemberStat.storage_member:].push_back(
                     { { std::forward_like<U>(item.[:BucketMemberStats.item_member:])... } });
@@ -651,7 +654,7 @@ private:
 
     template <typename TRef>
     constexpr void push_back_ref_impl(const TRef& ref) {
-        misc::static_vector_foreach<collect_storage_stats()>([&, this]<storage_member_stat StorageMemberStat> {
+        misc::static_vector_foreach<storage_stats_s>([&, this]<storage_member_stat StorageMemberStat> {
             misc::static_vector_spread<StorageMemberStat.bucket_members>([&, this]<bucket_member_stat... BucketMemberStats> {
                 constexpr auto ref_nsdm = misc::nsdm_of(^^typename TRef::storage_type);
                 constexpr auto orig_nsdm = misc::nsdm_of(^^typename TRef::original_type);
